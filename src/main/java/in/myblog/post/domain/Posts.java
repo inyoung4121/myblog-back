@@ -1,13 +1,21 @@
-package in.myblog.post;
+package in.myblog.post.domain;
 
 import in.myblog.comment.Comments;
 import in.myblog.user.domain.Users;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
 @Entity
 public class Posts {
     @Id
@@ -38,4 +46,17 @@ public class Posts {
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
     private List<VisitLog> visitLogs = new ArrayList<>();
+
+    public Posts updateTitle(String title) {
+        this.title = title;
+        return this;
+    }
+    public Posts updateContent(String content) {
+        this.content = content;
+        return this;
+    }
+    public Posts updateUpdatedAt() {
+        this.updatedAt = LocalDateTime.now();
+        return this;
+    }
 }

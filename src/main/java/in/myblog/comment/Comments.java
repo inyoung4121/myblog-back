@@ -1,12 +1,14 @@
 package in.myblog.comment;
 
-import in.myblog.post.Posts;
+import in.myblog.post.domain.Posts;
 import in.myblog.user.domain.Users;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
+@Getter
 @Entity
 public class Comments {
     @Id
