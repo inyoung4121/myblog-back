@@ -2,12 +2,19 @@ package in.myblog.user.domain;
 
 import in.myblog.comment.Comments;
 import in.myblog.post.Posts;
-import in.myblog.user.UserRole;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Getter
 @Entity
 public class Users {
 
@@ -24,6 +31,7 @@ public class Users {
     private String email;
 
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private UserRole role;
 
     @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
@@ -31,4 +39,16 @@ public class Users {
 
     @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Comments> comments = new ArrayList<>();
+
+    public void changePassword(String newPassword) {
+        this.password = newPassword;
+    }
+
+    public void changeUsername(String newUsername) {
+        this.username = newUsername;
+    }
+
+    public void changeRole(UserRole newRole) {
+        this.role = newRole;
+    }
 }
