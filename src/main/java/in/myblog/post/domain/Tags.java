@@ -1,11 +1,18 @@
-package in.myblog.tag;
+package in.myblog.post.domain;
 
-import in.myblog.post.PostTags;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Entity
 public class Tags {
     @Id

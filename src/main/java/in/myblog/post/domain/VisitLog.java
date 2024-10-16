@@ -1,10 +1,17 @@
-package in.myblog.post;
+package in.myblog.post.domain;
 
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Entity
 public class VisitLog {
     @Id

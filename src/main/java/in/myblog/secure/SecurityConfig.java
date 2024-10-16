@@ -3,6 +3,7 @@ package in.myblog.secure;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -30,6 +31,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").permitAll()
                         .requestMatchers("/swagger-ui").permitAll()
                         .requestMatchers("/api/secure/**").authenticated() // 인증이 필요한 경로
+                        .requestMatchers(HttpMethod.POST, "/api/posts/**").hasAnyRole("ROLE_ADMIN", "ROLE_USER")
+                        .requestMatchers(HttpMethod.PUT, "/api/posts/**").hasAnyRole("ROLE_ADMIN", "ROLE_USER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/posts/**").hasAnyRole("ROLE_ADMIN", "ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
                         .anyRequest().permitAll() // 나머지는 모두 허용
                 )
                 .exceptionHandling(exceptionHandling -> exceptionHandling

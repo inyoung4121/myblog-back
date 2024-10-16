@@ -1,7 +1,7 @@
 package in.myblog.user.domain;
 
 import in.myblog.comment.Comments;
-import in.myblog.post.Posts;
+import in.myblog.post.domain.Posts;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
