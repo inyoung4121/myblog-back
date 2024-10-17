@@ -1,4 +1,4 @@
-package in.myblog.comment;
+package in.myblog.comment.domain;
 
 import in.myblog.post.domain.Posts;
 import in.myblog.user.domain.Users;
@@ -41,13 +41,35 @@ public class Comments {
     @Column(name = "delete_password")
     private String deletePassword;
 
-    public boolean canDelete(Users user, String providedPassword) {
-        if (this.author != null && this.author.equals(user)) {
-            return true;
+    public AccessResult canAccess(Users user, String providedPassword) {
+        if (this.author != null) {
+            return this.author.equals(user) ? AccessResult.ALLOWED : AccessResult.NOT_AUTHOR;
         }
         if (this.isAnonymous && this.deletePassword != null) {
-            return this.deletePassword.equals(providedPassword);
+            return this.deletePassword.equals(providedPassword) ? AccessResult.ALLOWED : AccessResult.INVALID_PASSWORD;
         }
-        return false;
+        return AccessResult.NOT_ALLOWED;
+    }
+
+    public void updateContent(String content) {
+        this.content = content;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updatePost(Posts post) {
+        this.post = post;
+    }
+
+    public void updateAuthor(Users author) {
+        this.author = author;
+    }
+
+    public void setAnonymous(boolean isAnonymous) {
+        this.isAnonymous = isAnonymous;
+    }
+
+    public void setAnonymousInfo(String anonymousName, String deletePassword) {
+        this.anonymousName = anonymousName;
+        this.deletePassword = deletePassword;
     }
 }
