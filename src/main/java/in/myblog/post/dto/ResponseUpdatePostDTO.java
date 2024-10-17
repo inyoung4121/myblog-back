@@ -1,6 +1,6 @@
 package in.myblog.post.dto;
 
-import in.myblog.comment.ResponseCommentDTO;
+import in.myblog.comment.dto.ResponseCommentDTO;
 import in.myblog.post.domain.Posts;
 import lombok.Getter;
 import lombok.Setter;

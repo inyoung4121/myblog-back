@@ -1,6 +1,7 @@
-package in.myblog.comment;
+package in.myblog.comment.dto;
 
 
+import in.myblog.comment.domain.Comments;
 import lombok.Getter;
 import lombok.Setter;
 
