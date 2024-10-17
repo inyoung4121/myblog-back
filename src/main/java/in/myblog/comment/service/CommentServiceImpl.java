@@ -52,7 +52,7 @@ public class CommentServiceImpl implements CommentService {
             comment.setAnonymousInfo(commentDto.getAnonymousName(), commentDto.getDeletePassword());
         } else {
             Users user = userRepository.findById(commentDto.getUserId())
-                    .orElseThrow(() -> new CustomUserExceptions.UserNotFoundException("사용자를 찾을 수 없습니다"));
+                    .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
             comment.updateAuthor(user);
         }
 
@@ -68,7 +68,7 @@ public class CommentServiceImpl implements CommentService {
         Users user = null;
         if (userId != null) {
             user = userRepository.findById(userId)
-                    .orElseThrow(() -> new CustomUserExceptions.UserNotFoundException("사용자를 찾을 수 없습니다"));
+                    .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
         }
 
         AccessResult result = comment.canAccess(user, password);
@@ -94,7 +94,7 @@ public class CommentServiceImpl implements CommentService {
         Users user = null;
         if (userId != null) {
             user = userRepository.findById(userId)
-                    .orElseThrow(() -> new CustomUserExceptions.UserNotFoundException("사용자를 찾을 수 없습니다"));
+                    .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
         }
 
         AccessResult result = comment.canAccess(user, deletePassword);

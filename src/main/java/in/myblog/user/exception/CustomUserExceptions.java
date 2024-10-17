@@ -2,39 +2,41 @@ package in.myblog.user.exception;
 
 
 public class CustomUserExceptions {
+    private CustomUserExceptions() {}
+
     public static class UserNotFoundException extends RuntimeException {
-        public UserNotFoundException(String message) {
-            super(message);
+        public UserNotFoundException() {
+            super("해당 사용자를 찾을 수 없습니다");
         }
     }
 
     public static class DuplicateUsernameException extends RuntimeException {
-        public DuplicateUsernameException(String message) {
-            super(message);
+        public DuplicateUsernameException() {
+            super("이미 사용중인 이름입니다");
         }
     }
 
     public static class DuplicateEmailException extends RuntimeException {
-        public DuplicateEmailException(String message) {
-            super(message);
+        public DuplicateEmailException() {
+            super("이미 사용중인 이메일입니다");
         }
     }
 
     public static class InvalidCredentialsException extends RuntimeException {
-        public InvalidCredentialsException(String message) {
-            super(message);
+        public InvalidCredentialsException() {
+            super("비밀번호가 틀렸습니다");
         }
     }
 
     public static class RoleChangeRequestNotFoundException extends RuntimeException {
-        public RoleChangeRequestNotFoundException(String message) {
-            super(message);
+        public RoleChangeRequestNotFoundException() {
+            super("역할 변경 요청을 찾을 수 없습니다.");
         }
     }
 
     public static class InvalidRoleChangeRequestStatusException extends RuntimeException {
-        public InvalidRoleChangeRequestStatusException(String message) {
-            super(message);
+        public InvalidRoleChangeRequestStatusException() {
+            super("이미 처리된 요청입니다");
         }
     }
 }

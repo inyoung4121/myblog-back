@@ -5,6 +5,7 @@ import in.myblog.user.domain.UserRole;
 import in.myblog.user.domain.RoleChangeRequest;
 import in.myblog.user.domain.Users;
 import in.myblog.user.dto.ResponseUserDTO;
+import in.myblog.user.exception.CustomUserExceptions;
 import in.myblog.user.repository.RoleChangeRequestRepository;
 import in.myblog.user.repository.UserRepository;
 import in.myblog.user.exception.CustomUserExceptions.*;
@@ -29,10 +30,10 @@ public class UserService {
 
     public ResponseUserDTO registerUser(String username, String email, String password, HttpServletResponse response) {
         if (userRepository.findByUsername(username).isPresent()) {
-            throw new DuplicateUsernameException("Username already exists");
+            throw new DuplicateUsernameException();
         }
         if (userRepository.findByEmail(email).isPresent()) {
-            throw new DuplicateEmailException("Email already exists");
+            throw new DuplicateEmailException();
         }
 
         Users user = new Users().builder()
@@ -48,10 +49,10 @@ public class UserService {
 
     public ResponseUserDTO login(String email, String password, HttpServletResponse response) {
         Users user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
+                .orElseThrow(InvalidCredentialsException::new);
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new InvalidCredentialsException("Invalid email or password");
+            throw new InvalidCredentialsException();
         }
 
         return authenticateUser(user, response);
@@ -79,10 +80,10 @@ public class UserService {
     @Transactional
     public void changePassword(Long userId, String oldPassword, String newPassword) {
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
 
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
-            throw new InvalidCredentialsException("현재 비밀번호가 올바르지 않습니다.");
+            throw new InvalidCredentialsException();
         }
 
         user.changePassword(passwordEncoder.encode(newPassword));
@@ -91,10 +92,10 @@ public class UserService {
     @Transactional
     public Users changeUsername(Long userId, String newUsername) {
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
 
         userRepository.findByUsername(newUsername).ifPresent(u -> {
-            throw new DuplicateUsernameException("이미 존재하는 사용자 이름입니다.");
+            throw new DuplicateUsernameException();
         });
 
         user.changeUsername(newUsername);
@@ -104,7 +105,7 @@ public class UserService {
     @Transactional
     public RoleChangeRequest requestRoleChange(Long userId) {
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
 
         RoleChangeRequest request = RoleChangeRequest.builder()
                 .user(user)
@@ -123,10 +124,10 @@ public class UserService {
     @Transactional
     public void approveRoleChangeRequest(Long requestId) {
         RoleChangeRequest request = roleChangeRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RoleChangeRequestNotFoundException("역할 변경 요청을 찾을 수 없습니다."));
+                .orElseThrow(RoleChangeRequestNotFoundException::new);
 
         if (request.getStatus() != RoleChangeRequest.RequestStatus.PENDING) {
-            throw new InvalidRoleChangeRequestStatusException("이미 처리된 요청입니다.");
+            throw new InvalidRoleChangeRequestStatusException();
         }
 
         request.approve();
@@ -136,10 +137,10 @@ public class UserService {
     @Transactional
     public void rejectRoleChangeRequest(Long requestId) {
         RoleChangeRequest request = roleChangeRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RoleChangeRequestNotFoundException("역할 변경 요청을 찾을 수 없습니다."));
+                .orElseThrow(RoleChangeRequestNotFoundException::new);
 
         if (request.getStatus() != RoleChangeRequest.RequestStatus.PENDING) {
-            throw new InvalidRoleChangeRequestStatusException("이미 처리된 요청입니다.");
+            throw new InvalidRoleChangeRequestStatusException();
         }
 
         request.reject();
