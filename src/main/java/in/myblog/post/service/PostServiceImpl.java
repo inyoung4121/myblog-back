@@ -41,7 +41,7 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public ResponseCreatePostDTO createPost(String title, String content, Long authorId, List<String> tags) {
         Users user = userRepository.findById(authorId)
-                .orElseThrow(() -> new CustomUserExceptions.UserNotFoundException("유저를 찾을 수 없습니다"));
+                .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
 
         Posts post = Posts
                 .builder()
@@ -68,7 +68,7 @@ public class PostServiceImpl implements PostService {
         Posts post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(postId));
 
-        Users user = userRepository.findById(authorId).orElseThrow(() -> new CustomUserExceptions.UserNotFoundException("유저 찾을 수 없음"));
+        Users user = userRepository.findById(authorId).orElseThrow(CustomUserExceptions.UserNotFoundException::new);
 
         if (Objects.equals(user.getId(), post.getAuthor().getId())) {
             post.updateTitle(title).updateContent(content).updateUpdatedAt();
