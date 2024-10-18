@@ -36,10 +36,13 @@ public class UserService {
             throw new DuplicateEmailException();
         }
 
+        // 비밀번호 암호화
+        String encodedPassword = passwordEncoder.encode(password);
+
         Users user = new Users().builder()
                 .role(UserRole.USER)
                 .email(email)
-                .password(password)
+                .password(encodedPassword)  // 암호화된 비밀번호 사용
                 .username(username)
                 .build();
         user = userRepository.save(user);
