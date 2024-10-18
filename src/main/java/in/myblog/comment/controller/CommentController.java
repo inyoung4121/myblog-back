@@ -44,7 +44,7 @@ public class CommentController {
             @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없습니다")
     })
     @PostMapping
-    public ResponseEntity<CommentDto> createComment(@RequestBody CommentDto commentDto) {
+    public ResponseEntity<CommentListDto> createComment(@RequestBody CommentDto commentDto) {
         return ResponseEntity.ok(commentService.createComment(commentDto));
     }
 
@@ -58,7 +58,7 @@ public class CommentController {
             @ApiResponse(responseCode = "404", description = "해당 댓글을 찾을 수 없습니다")
     })
     @PutMapping("/{commentId}")
-    public ResponseEntity<CommentDto> updateComment(@PathVariable Long commentId,
+    public ResponseEntity<CommentListDto> updateComment(@PathVariable Long commentId,
                                                     @RequestBody CommentDto commentDto,
                                                     @RequestParam Long userId,
                                                     @RequestParam(required = false) String deletePassword) {
@@ -73,8 +73,9 @@ public class CommentController {
     })
     @DeleteMapping("/{commentId}")
     public ResponseEntity<Void> deleteComment(@PathVariable Long commentId,
-                                              @RequestParam Long userId,
+                                              @RequestParam(required = false) Long userId,
                                               @RequestParam(required = false) String deletePassword) {
+        System.out.println(commentId+deletePassword);
         commentService.deleteComment(commentId, userId, deletePassword);
         return ResponseEntity.ok().build();
     }

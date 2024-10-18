@@ -4,10 +4,16 @@ import in.myblog.post.domain.Posts;
 import in.myblog.user.domain.Users;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Entity
 public class Comments {

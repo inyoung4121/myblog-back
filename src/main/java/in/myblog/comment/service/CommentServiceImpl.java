@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -39,14 +40,17 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Transactional
-    public CommentDto createComment(CommentDto commentDto) {
+    public CommentListDto createComment(CommentDto commentDto) {
         Posts post = postRepository.findById(commentDto.getPostId())
                 .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(commentDto.getPostId()));
 
-        Comments comment = new Comments();
-        comment.updateContent(commentDto.getContent());
-        comment.updatePost(post);
-        comment.setAnonymous(commentDto.isAnonymous());
+        Comments comment = Comments.builder()
+                .content(commentDto.getContent())
+                .post(post)
+                .isAnonymous(commentDto.isAnonymous())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
 
         if (commentDto.isAnonymous()) {
             comment.setAnonymousInfo(commentDto.getAnonymousName(), commentDto.getDeletePassword());
@@ -57,11 +61,11 @@ public class CommentServiceImpl implements CommentService {
         }
 
         Comments savedComment = commentRepository.save(comment);
-        return convertToDto(savedComment);
+        return convertToListDto(savedComment);
     }
 
     @Transactional
-    public CommentDto updateComment(Long commentId, CommentDto commentDto, Long userId, String password) {
+    public CommentListDto updateComment(Long commentId, CommentDto commentDto, Long userId, String password) {
         Comments comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new CustomCommentExceptions.CommentNotFoundException(commentId));
 
@@ -76,7 +80,7 @@ public class CommentServiceImpl implements CommentService {
             case ALLOWED:
                 comment.updateContent(commentDto.getContent());
                 Comments updatedComment = commentRepository.save(comment);
-                return convertToDto(updatedComment);
+                return convertToListDto(updatedComment);
             case NOT_AUTHOR, NOT_ALLOWED:
                 throw new CustomCommentExceptions.CommentAccessDeniedException();
             case INVALID_PASSWORD:
@@ -116,7 +120,7 @@ public class CommentServiceImpl implements CommentService {
                 .content(comment.getContent())
                 .postId(comment.getPost().getId())
                 .userId(comment.getAuthor() != null ? comment.getAuthor().getId() : null)
-                .isAnonymous(comment.isAnonymous())
+                .anonymous(comment.isAnonymous())
                 .anonymousName(comment.getAnonymousName())
                 .build();
     }
@@ -128,7 +132,7 @@ public class CommentServiceImpl implements CommentService {
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
                 .authorName(comment.getAuthor() != null ? comment.getAuthor().getUsername() : null)
-                .isAnonymous(comment.isAnonymous())
+                .anonymous(comment.isAnonymous())
                 .anonymousName(comment.getAnonymousName())
                 .build();
     }

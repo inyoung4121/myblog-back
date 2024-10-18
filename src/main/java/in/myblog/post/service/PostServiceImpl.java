@@ -158,7 +158,7 @@ public class PostServiceImpl implements PostService {
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
                 .authorName(comment.isAnonymous() ? comment.getAnonymousName() : comment.getAuthor().getUsername())
-                .isAnonymous(comment.isAnonymous())
+                .anonymous(comment.isAnonymous())
                 .anonymousName(comment.getAnonymousName())
                 .build();
     }
