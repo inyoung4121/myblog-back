@@ -2,6 +2,8 @@ package in.myblog.post.service;
 
 import in.myblog.post.dto.*;
 import org.springframework.data.domain.Page;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 import java.util.List;
 
@@ -11,4 +13,5 @@ public interface PostService {
     void deletePost(Long postId) ;
     ResponsePageDetailDTO getPost(Long postId, String ipAddress, String userAgent) ;
     Page<PostSummaryDTO> getRecentPosts(int page, int size);
+    LikeResponseDTO likePost(Long postId, String deviceId);
 }

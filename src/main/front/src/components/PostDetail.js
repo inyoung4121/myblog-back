@@ -6,6 +6,9 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Header from './Header';
+import { v4 as uuidv4 } from 'uuid';
+
+
 
 const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -118,11 +121,22 @@ const PostDetail = () => {
     const { postId } = useParams();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [isLiked, setIsLiked] = useState(false);
+    const [likeCount, setLikeCount] = useState(0);
+    const [deviceId, setDeviceId] = useState('');
 
 
     useEffect(() => {
         const token = localStorage.getItem('eureka_jwt_token');
         setIsLoggedIn(!!token);
+
+        // 디바이스 ID 확인 및 생성
+        let storedDeviceId = localStorage.getItem('device_id');
+        if (!storedDeviceId) {
+            storedDeviceId = uuidv4();
+            localStorage.setItem('device_id', storedDeviceId);
+        }
+        setDeviceId(storedDeviceId);
 
         const fetchPostAndComments = async () => {
             try {
@@ -131,9 +145,15 @@ const PostDetail = () => {
                     axios.get(`/api/comments/post/${postId}`)
                 ]);
                 setPost(postResponse.data);
-                // 댓글을 생성 날짜의 오름차순으로 정렬 (오래된 순)
                 setComments(commentsResponse.data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+                setLikeCount(postResponse.data.likeCount);
                 setLoading(false);
+
+                // 좋아요 상태 확인
+                const likeStatusResponse = await axios.get(`/api/posts/${postId}/like`, {
+                    params: { deviceId: storedDeviceId }
+                });
+                setIsLiked(likeStatusResponse.data.liked);
             } catch (err) {
                 setError('Failed to fetch post details and comments');
                 setLoading(false);
@@ -142,6 +162,25 @@ const PostDetail = () => {
 
         fetchPostAndComments();
     }, [postId]);
+
+    const handleLike = async () => {
+        try {
+            if (!deviceId) {
+                setError('Device ID not found');
+                return;
+            }
+
+            const response = await axios.post(`/api/posts/${postId}/like`, null, {
+                params: { deviceId }
+            });
+
+            setIsLiked(response.data.liked);
+            setLikeCount(response.data.totalLikes);
+        } catch (err) {
+            setError('Failed to update like status');
+        }
+    };
+
 
     const handleCommentSubmit = async (e) => {
         e.preventDefault();
@@ -241,8 +280,22 @@ const PostDetail = () => {
                                     <circle cx="12" cy="11" r="1.5" fill="#228B22"/>
                                     <circle cx="17" cy="11" r="1.5" fill="#228B22"/>
                                 </svg>
-                                <h2 className="text-2xl font-bold">댓글</h2>
-                                <span className="ml-2 text-gray-600">[{comments.length}개]</span>
+                                <h2 className="text-lg font-bold">댓글 {comments.length}개</h2>
+                                <div className="ml-6 flex items-center">
+                                    <button
+                                        onClick={handleLike}
+                                        className="flex items-center space-x-2 focus:outline-none"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24"
+                                             stroke="currentColor" fill={isLiked ? "red" : "none"}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                                        </svg>
+                                        <span className="text-lg font-semibold">
+                좋아요 {likeCount}개
+            </span>
+                                    </button>
+                                </div>
                             </div>
 
                             {comments.map((comment) => (

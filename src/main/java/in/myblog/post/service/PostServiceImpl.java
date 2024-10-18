@@ -3,6 +3,8 @@ package in.myblog.post.service;
 
 import in.myblog.comment.domain.Comments;
 import in.myblog.comment.dto.CommentListDto;
+import in.myblog.like.domain.Like;
+import in.myblog.like.repository.LikeRepository;
 import in.myblog.post.domain.Posts;
 import in.myblog.post.domain.PostTags;
 import in.myblog.post.domain.VisitLog;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -37,6 +40,7 @@ public class PostServiceImpl implements PostService {
     private final PostTagRespository postTagRepository;
     private final VisitLogRepository visitLogRepository;
     private final UserRepository userRepository;
+    private final LikeRepository likeRepository;
 
     @Transactional
     public ResponseCreatePostDTO createPost(String title, String content, Long authorId, List<String> tags) {
@@ -97,6 +101,13 @@ public class PostServiceImpl implements PostService {
         Page<Posts> postsPage = postRepository.findAllPosts(pageRequest);
 
         List<Posts> postsWithTags = postRepository.findPostsWithTags(postsPage.getContent());
+        List<Object[]> likeCounts = postRepository.countLikesForPosts(postsPage.getContent());
+
+        Map<Long, Long> postIdToLikeCount = likeCounts.stream()
+                .collect(Collectors.toMap(
+                        arr -> (Long) arr[0],
+                        arr -> (Long) arr[1]
+                ));
 
         return postsPage.map(post -> {
             Posts postWithTags = postsWithTags.stream()
@@ -108,6 +119,8 @@ public class PostServiceImpl implements PostService {
                     .map(postTag -> postTag.getTag().getName())
                     .collect(Collectors.toList());
 
+            Long likeCount = postIdToLikeCount.getOrDefault(post.getId(), 0L);
+
             return new PostSummaryDTO(
                     post.getId(),
                     post.getTitle(),
@@ -116,7 +129,8 @@ public class PostServiceImpl implements PostService {
                     post.getContent().length() > 100
                             ? post.getContent().substring(0, 100) + "..."
                             : post.getContent(),
-                    tags
+                    tags,
+                    likeCount.intValue()
             );
         });
     }
@@ -132,6 +146,7 @@ public class PostServiceImpl implements PostService {
         responsePageDetailDTO.setCreatedAt(post.getCreatedAt());
         responsePageDetailDTO.setUpdatedAt(post.getUpdatedAt());
         responsePageDetailDTO.setAuthorName(post.getAuthor().getUsername());
+        responsePageDetailDTO.setLikeCount(likeRepository.countByPostId(postId));
 
         // 방문 로그 기록
         VisitLog visitLog = VisitLog.builder()
@@ -150,6 +165,55 @@ public class PostServiceImpl implements PostService {
 
         return responsePageDetailDTO;
     }
+
+    @Transactional
+    public LikeResponseDTO likePost(Long postId, String deviceId) {
+        Posts post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Post not found"));
+
+        Like like = likeRepository.findByPostIdAndDeviceId(postId, deviceId)
+                .orElse(null);
+
+        boolean isLiked;
+        String message;
+
+        if (like == null) {
+            // 좋아요가 없으면 새로 생성
+            like = Like.builder()
+                    .post(post)
+                    .deviceId(deviceId)
+                    .build();
+            likeRepository.save(like);
+            isLiked = true;
+            message = "좋아요가 추가되었습니다.";
+        } else {
+            // 좋아요가 이미 있으면 제거
+            likeRepository.delete(like);
+            isLiked = false;
+            message = "좋아요가 취소되었습니다.";
+        }
+
+        postRepository.save(post);
+
+        return LikeResponseDTO.builder()
+                .postId(postId)
+                .liked(isLiked)
+                .totalLikes(likeRepository.countByPostId(postId))
+                .message(message)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public LikeResponseDTO getLikeStatus(Long postId, String deviceId) {
+        boolean isLiked = likeRepository.existsByPostIdAndDeviceId(postId, deviceId);
+
+        return LikeResponseDTO.builder()
+                .postId(postId)
+                .liked(isLiked)
+                .totalLikes(likeRepository.countByPostId(postId))
+                .build();
+    }
+
 
     private CommentListDto convertToCommentListDto(Comments comment) {
         return CommentListDto.builder()
