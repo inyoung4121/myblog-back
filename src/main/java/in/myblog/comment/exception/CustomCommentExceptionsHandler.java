@@ -18,8 +18,8 @@ public class CustomCommentExceptionsHandler {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);  // 403 Forbidden
     }
 
-    @ExceptionHandler(CustomCommentExceptions.CommentAccessDeniedException.class)
-    public ResponseEntity<String> handleCommentAccessDeniedException(CustomCommentExceptions.InvalidPasswordException ex) {
+    @ExceptionHandler(CustomCommentExceptions.InvalidPasswordException.class)
+    public ResponseEntity<String> handleInvalidPasswordException(CustomCommentExceptions.InvalidPasswordException ex) {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);  // 403 Forbidden
     }
 }

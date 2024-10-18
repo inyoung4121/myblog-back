@@ -1,13 +1,12 @@
 package in.myblog.post.service;
 
 
+import in.myblog.comment.domain.Comments;
+import in.myblog.comment.dto.CommentListDto;
 import in.myblog.post.domain.Posts;
 import in.myblog.post.domain.PostTags;
 import in.myblog.post.domain.VisitLog;
-import in.myblog.post.repository.PostSummary;
-import in.myblog.post.dto.ResponseCreatePostDTO;
-import in.myblog.post.dto.ResponsePagedPostsDTO;
-import in.myblog.post.dto.ResponseUpdatePostDTO;
+import in.myblog.post.dto.*;
 import in.myblog.post.exception.CustomPostExceptions;
 import in.myblog.post.repository.PostRepository;
 import in.myblog.post.repository.PostTagRespository;
@@ -26,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 
 @RequiredArgsConstructor
@@ -92,16 +92,46 @@ public class PostServiceImpl implements PostService {
     }
 
     @Transactional(readOnly = true)
-    public ResponsePagedPostsDTO getRecentPosts(int page, int size) {
+    public Page<PostSummaryDTO> getRecentPosts(int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
-        Page<PostSummary> postsPage = postRepository.findAllPostSummaries(pageRequest);
-        return new ResponsePagedPostsDTO(postsPage);
+        Page<Posts> postsPage = postRepository.findAllPosts(pageRequest);
+
+        List<Posts> postsWithTags = postRepository.findPostsWithTags(postsPage.getContent());
+
+        return postsPage.map(post -> {
+            Posts postWithTags = postsWithTags.stream()
+                    .filter(p -> p.getId().equals(post.getId()))
+                    .findFirst()
+                    .orElse(post);
+
+            List<String> tags = postWithTags.getPostTags().stream()
+                    .map(postTag -> postTag.getTag().getName())
+                    .collect(Collectors.toList());
+
+            return new PostSummaryDTO(
+                    post.getId(),
+                    post.getTitle(),
+                    post.getAuthor().getUsername(),
+                    post.getCreatedAt(),
+                    post.getContent().length() > 100
+                            ? post.getContent().substring(0, 100) + "..."
+                            : post.getContent(),
+                    tags
+            );
+        });
     }
 
     @Transactional
-    public Posts getPost(Long postId, String ipAddress, String userAgent) {
-        Posts post = postRepository.findById(postId)
+    public ResponsePageDetailDTO getPost(Long postId, String ipAddress, String userAgent) {
+        Posts post = postRepository.findByIdWithAuthorAndComments(postId)
                 .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(postId));
+
+        ResponsePageDetailDTO responsePageDetailDTO = new ResponsePageDetailDTO();
+        responsePageDetailDTO.setTitle(post.getTitle());
+        responsePageDetailDTO.setContent(post.getContent());
+        responsePageDetailDTO.setCreatedAt(post.getCreatedAt());
+        responsePageDetailDTO.setUpdatedAt(post.getUpdatedAt());
+        responsePageDetailDTO.setAuthorName(post.getAuthor().getUsername());
 
         // 방문 로그 기록
         VisitLog visitLog = VisitLog.builder()
@@ -112,7 +142,25 @@ public class PostServiceImpl implements PostService {
                 .build();
         visitLogRepository.save(visitLog);
 
-        return post;
+        List<CommentListDto> commentDtos = post.getComments().stream()
+                .map(this::convertToCommentListDto)
+                .collect(Collectors.toList());
+        responsePageDetailDTO.setCommentListDtoList(commentDtos);
+
+
+        return responsePageDetailDTO;
+    }
+
+    private CommentListDto convertToCommentListDto(Comments comment) {
+        return CommentListDto.builder()
+                .id(comment.getId())
+                .content(comment.getContent())
+                .createdAt(comment.getCreatedAt())
+                .updatedAt(comment.getUpdatedAt())
+                .authorName(comment.isAnonymous() ? comment.getAnonymousName() : comment.getAuthor().getUsername())
+                .isAnonymous(comment.isAnonymous())
+                .anonymousName(comment.getAnonymousName())
+                .build();
     }
 
     private void createAndConnectTags(Posts post, List<String> tagNames) {

@@ -1,21 +1,37 @@
 package in.myblog.post.repository;
 
 import in.myblog.post.domain.Posts;
+import in.myblog.post.dto.PostSummaryDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PostRepository extends JpaRepository<Posts, Long>{
-    @Query(value = "SELECT p.id as id, p.title as title, u.username as authorName, " +
-            "p.created_at as createdAt, " +
-            "CASE WHEN LENGTH(p.content) > 100 THEN CONCAT(SUBSTRING(p.content, 1, 100), '...') " +
-            "ELSE p.content END as contentPreview " +
-            "FROM posts p JOIN users u ON p.author_id = u.id " +
-            "ORDER BY p.id DESC",
-            countQuery = "SELECT COUNT(*) FROM posts",
-            nativeQuery = true)
-    Page<PostSummary> findAllPostSummaries(Pageable pageable);
+    Page<Posts> findAll(Pageable pageable);
+
+
+    @Query("SELECT p FROM Posts p " +
+            "LEFT JOIN FETCH p.author a " +
+            "LEFT JOIN FETCH p.comments c " +
+            "LEFT JOIN FETCH c.author ca " +
+            "WHERE p.id = :postId")
+    Optional<Posts> findByIdWithAuthorAndComments(@Param("postId") Long postId);
+
+
+    @Query("SELECT DISTINCT p FROM Posts p " +
+            "LEFT JOIN FETCH p.postTags pt " +
+            "LEFT JOIN FETCH pt.tag " +
+            "WHERE p IN :posts")
+    List<Posts> findPostsWithTags(List<Posts> posts);
+
+    @Query(value = "SELECT p FROM Posts p",
+            countQuery = "SELECT COUNT(p) FROM Posts p")
+    Page<Posts> findAllPosts(Pageable pageable);
 }

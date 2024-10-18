@@ -2,10 +2,7 @@ package in.myblog.post.controller;
 
 
 import in.myblog.post.domain.Posts;
-import in.myblog.post.dto.RequestUpdatePostDTO;
-import in.myblog.post.dto.ResponseCreatePostDTO;
-import in.myblog.post.dto.ResponsePagedPostsDTO;
-import in.myblog.post.dto.ResponseUpdatePostDTO;
+import in.myblog.post.dto.*;
 import in.myblog.post.service.PostServiceImpl;
 import in.myblog.user.domain.Users;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -77,14 +75,14 @@ public class PostController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully retrieved posts",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ResponsePagedPostsDTO.class))),
+                            schema = @Schema(implementation = PostSummaryDTOPage.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input")
     })
     @GetMapping
-    public ResponseEntity<ResponsePagedPostsDTO> getRecentPosts(
+    public ResponseEntity<Page<PostSummaryDTO>> getRecentPosts(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "16") int size) {
-        ResponsePagedPostsDTO response = postService.getRecentPosts(page, size);
+        Page<PostSummaryDTO> response = postService.getRecentPosts(page, size);
         return ResponseEntity.ok(response);
     }
 
@@ -92,14 +90,14 @@ public class PostController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully retrieved post",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = Posts.class))),
+                            schema = @Schema(implementation = ResponsePageDetailDTO.class))),
             @ApiResponse(responseCode = "404", description = "Post not found")
     })
     @GetMapping("/{postId}")
-    public ResponseEntity<Posts> getPost(@PathVariable Long postId, HttpServletRequest request) {
+    public ResponseEntity<ResponsePageDetailDTO> getPost(@PathVariable Long postId, HttpServletRequest request) {
         String ipAddress = request.getRemoteAddr();
         String userAgent = request.getHeader("User-Agent");
-        Posts post = postService.getPost(postId, ipAddress, userAgent);
+        ResponsePageDetailDTO post = postService.getPost(postId, ipAddress, userAgent);
         return ResponseEntity.ok(post);
     }
 }

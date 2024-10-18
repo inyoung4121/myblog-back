@@ -15,7 +15,7 @@ public class ResponsePagedPostsDTO {
     private int totalPages;
     private boolean last;
 
-    public ResponsePagedPostsDTO(Page<PostSummary> postPage) {
+    public ResponsePagedPostsDTO(Page<PostSummaryDTO> postPage) {
         this.list = postPage.getContent().stream()
                 .map(this::convertToInnerDTO)
                 .collect(Collectors.toList());
@@ -26,7 +26,7 @@ public class ResponsePagedPostsDTO {
         this.last = postPage.isLast();
     }
 
-    private ResponsePagedPostsInnerDTO convertToInnerDTO(PostSummary summary) {
+    private ResponsePagedPostsInnerDTO convertToInnerDTO(PostSummaryDTO summary) {
         return new ResponsePagedPostsInnerDTO(
                 summary.getId(),
                 summary.getTitle(),
