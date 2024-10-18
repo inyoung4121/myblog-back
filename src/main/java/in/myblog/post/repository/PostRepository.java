@@ -34,4 +34,7 @@ public interface PostRepository extends JpaRepository<Posts, Long>{
     @Query(value = "SELECT p FROM Posts p",
             countQuery = "SELECT COUNT(p) FROM Posts p")
     Page<Posts> findAllPosts(Pageable pageable);
+
+    @Query("SELECT p.id, COUNT(l) FROM Posts p LEFT JOIN p.likes l WHERE p IN :posts GROUP BY p.id")
+    List<Object[]> countLikesForPosts(List<Posts> posts);
 }

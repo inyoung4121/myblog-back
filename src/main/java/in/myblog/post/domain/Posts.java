@@ -1,6 +1,7 @@
 package in.myblog.post.domain;
 
 import in.myblog.comment.domain.Comments;
+import in.myblog.like.domain.Like;
 import in.myblog.user.domain.Users;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -46,6 +47,9 @@ public class Posts {
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
     private List<VisitLog> visitLogs = new ArrayList<>();
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Like> likes = new ArrayList<>();
 
     public Posts updateTitle(String title) {
         this.title = title;

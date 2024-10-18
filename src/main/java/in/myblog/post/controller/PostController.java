@@ -100,4 +100,31 @@ public class PostController {
         ResponsePageDetailDTO post = postService.getPost(postId, ipAddress, userAgent);
         return ResponseEntity.ok(post);
     }
+
+    @Operation(summary = "Like a post", description = "Likes or unlikes a post based on the device ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully liked/unliked the post",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = LikeResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Post not found")
+    })
+    @PostMapping("/{postId}/like")
+    public ResponseEntity<LikeResponseDTO> likePost(@PathVariable Long postId,
+                                                    @RequestParam("deviceId") String deviceId) {
+        LikeResponseDTO response = postService.likePost(postId, deviceId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Get like status of a post", description = "Checks if a post is liked by a specific device")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved like status"),
+            @ApiResponse(responseCode = "404", description = "Post not found")
+    })
+    @GetMapping("/{postId}/like")
+    public ResponseEntity<LikeResponseDTO> getLikeStatus(
+            @PathVariable Long postId,
+            @RequestParam String deviceId) {
+        LikeResponseDTO response = postService.getLikeStatus(postId, deviceId);
+        return ResponseEntity.ok(response);
+    }
 }

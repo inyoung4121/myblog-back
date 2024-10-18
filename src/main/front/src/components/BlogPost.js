@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { FaHeart } from 'react-icons/fa'
 
 const formatDate = (date) => {
     const d = new Date(date);
@@ -22,7 +23,11 @@ const BlogPost = React.forwardRef(({ post }, ref) => {
                 <div className="p-6 flex-grow">
                     <div className="flex justify-between items-center text-gray-400 text-sm mb-4">
                         <span>{formatDate(post.createdAt)}</span>
-                        <span>{post.authorName}</span>
+                        <div className="flex items-center">
+                            <span className="mr-2">{post.authorName}</span>
+                            <FaHeart className="text-red-500 mr-1" size={14} />
+                            <span>{post.likeCount}</span>
+                        </div>
                     </div>
                     <h2 className="text-2xl font-semibold mb-2 transition-colors duration-300 group-hover:text-blue-600">
                         {post.title}

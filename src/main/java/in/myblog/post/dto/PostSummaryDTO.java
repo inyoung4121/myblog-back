@@ -15,14 +15,16 @@ public class PostSummaryDTO {
     private LocalDateTime createdAt;
     private String contentPreview;
     private List<String> tags;
+    private int likeCount;
 
-    public PostSummaryDTO(Long id, String title, String authorName, LocalDateTime createdAt, String contentPreview, List<String> tags) {
+    public PostSummaryDTO(Long id, String title, String authorName, LocalDateTime createdAt, String contentPreview, List<String> tags, int likeCount) {
         this.id = id;
         this.title = title;
         this.authorName = authorName;
         this.createdAt = createdAt;
         this.contentPreview = contentPreview;
         this.tags = tags;
+        this.likeCount = likeCount;
     }
 
 }
