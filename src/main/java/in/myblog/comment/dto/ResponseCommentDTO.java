@@ -15,7 +15,7 @@ public class ResponseCommentDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String authorName;
-    private boolean isAnonymous;
+    private boolean anonymous;
     private String anonymousName;
 
     public static ResponseCommentDTO fromComment(Comments comment) {
