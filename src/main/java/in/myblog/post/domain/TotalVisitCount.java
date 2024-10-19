@@ -23,15 +23,12 @@ public class TotalVisitCount {
     @Column(nullable = false)
     private Long count;
 
-    @Version
-    private Long version;
-
     public TotalVisitCount(LocalDate date, Long count) {
         this.date = date;
         this.count = count;
     }
 
-    public void increment() {
+    public void incrementCount() {
         this.count++;
     }
 }

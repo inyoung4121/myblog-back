@@ -10,6 +10,6 @@ public interface PostService {
     Long updatePost(Long postId, String title, String content, Long authorId, List<String> tags);
     void deletePost(Long postId) ;
     ResponsePageDetailDTO getPost(Long postId, String ipAddress, String userAgent) ;
-    Page<PostSummaryDTO> getRecentPosts(int page, int size);
+    Page<PostSummaryDTO> getRecentPosts(int page, int size, List<String> tags);
     LikeResponseDTO likePost(Long postId, String deviceId);
 }

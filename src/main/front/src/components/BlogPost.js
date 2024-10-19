@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaHeart } from 'react-icons/fa'
+import { useTag } from '../contexts/TagContext';
 
 const formatDate = (date) => {
     const d = new Date(date);
@@ -14,6 +15,13 @@ const formatDate = (date) => {
 };
 
 const BlogPost = React.forwardRef(({ post }, ref) => {
+    const { selectedTags, toggleTag } = useTag();
+
+    const handleTagClick = (e, tag) => {
+        e.preventDefault();  // Link의 기본 동작 방지
+        toggleTag(tag);
+    };
+
     return (
         <Link to={`/api/posts/${post.id}`} className="block">
             <article
@@ -46,10 +54,17 @@ const BlogPost = React.forwardRef(({ post }, ref) => {
                     </p>
                     <div className="flex flex-wrap gap-2 mt-2">
                         {post.tags.map((tag, index) => (
-                            <span key={index}
-                                  className="px-2 py-1.5 bg-black text-white rounded-md text-xs font-medium">
+                            <button
+                                key={index}
+                                onClick={(e) => handleTagClick(e, tag)}
+                                className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors duration-200 ${
+                                    selectedTags.includes(tag)
+                                        ? 'bg-amber-200 text-gray-700 hover:bg-black hover:text-white'
+                                        : 'bg-black text-white hover:bg-amber-200 hover:text-gray-700'
+                                }`}
+                            >
                                 {tag}
-                            </span>
+                            </button>
                         ))}
                     </div>
                 </div>

@@ -1,11 +1,22 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
 
 const Header = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const handleHomeClick = (e) => {
+        if (location.pathname === '/') {
+            e.preventDefault();
+            navigate(0); // 0을 인자로 전달하면 현재 페이지를 새로고침합니다.
+        }
+    };
+
     return (
         <header className="bg-white shadow-md fixed top-0 left-0 right-0 z-10">
             <div className="container mx-auto">
-                <Link to="/" className="block">
+                <Link to="/" className="block" onClick={handleHomeClick}>
                     <div className="px-6 py-3.5 flex items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 524 412" className="w-10 h-8 mr-2">
                             <path fill="#FEFEFE"
