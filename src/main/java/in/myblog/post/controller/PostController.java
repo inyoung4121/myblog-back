@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.util.List;
+
 @Tag(name = "Post Management", description = "APIs for managing blog posts")
 @RequiredArgsConstructor
 @RestController
@@ -83,8 +85,9 @@ public class PostController {
     @GetMapping
     public ResponseEntity<Page<PostSummaryDTO>> getRecentPosts(
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "16") int size) {
-        Page<PostSummaryDTO> response = postService.getRecentPosts(page, size);
+            @RequestParam(value = "size", defaultValue = "16") int size,
+            @RequestParam(required = false) List<String> tags) {
+        Page<PostSummaryDTO> response = postService.getRecentPosts(page, size, tags);
         return ResponseEntity.ok(response);
     }
 

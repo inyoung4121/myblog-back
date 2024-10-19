@@ -21,6 +21,8 @@ import in.myblog.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -98,9 +100,9 @@ public class PostServiceImpl implements PostService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PostSummaryDTO> getRecentPosts(int page, int size) {
-        PageRequest pageRequest = PageRequest.of(page, size);
-        Page<Posts> postsPage = postRepository.findAllPosts(pageRequest);
+    public Page<PostSummaryDTO> getRecentPosts(int page, int size, List<String> tags1) {
+
+        Page<Posts> postsPage = getPostWithTag(page, size, tags1);
 
         List<Posts> postsWithTags = postRepository.findPostsWithTags(postsPage.getContent());
         List<Object[]> likeCounts = postRepository.countLikesForPosts(postsPage.getContent());
@@ -255,6 +257,16 @@ public class PostServiceImpl implements PostService {
                         .build();
                 post.addPostTag(postTag);
             }
+        }
+    }
+
+    private Page<Posts> getPostWithTag(int page, int size, List<String> tags){
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        if (tags != null && !tags.isEmpty()) {
+            return postRepository.findByTagsIn(tags, pageable);
+        } else {
+            return postRepository.findAll(pageable);
         }
     }
 }

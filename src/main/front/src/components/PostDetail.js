@@ -264,20 +264,12 @@ const PostDetail = () => {
                         {/* 태그 표시 부분 추가 */}
                         <div className="mb-6">
                             {post.tags && post.tags.map((tag, index) => (
-                                <span key={index} className="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2">
-                                #{tag}
+                                <span key={index}
+                                      className="inline-block bg-black rounded-md px-2 py-1.5 text-xs font-medium text-white mr-2 mb-2">
+                                {tag}
                             </span>
                             ))}
                         </div>
-                        <div className="prose max-w-none mb-8">
-                            <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={customRenderers}
-                            >
-                                {post.content}
-                            </ReactMarkdown>
-                        </div>
-
                         <div className="prose max-w-none mb-8">
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}

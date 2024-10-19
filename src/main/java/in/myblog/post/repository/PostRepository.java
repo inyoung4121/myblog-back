@@ -37,4 +37,7 @@ public interface PostRepository extends JpaRepository<Posts, Long>{
 
     @Query("SELECT p.id, COUNT(l) FROM Posts p LEFT JOIN p.likes l WHERE p IN :posts GROUP BY p.id")
     List<Object[]> countLikesForPosts(List<Posts> posts);
+
+    @Query("SELECT DISTINCT p FROM Posts p JOIN p.postTags pt JOIN pt.tag t WHERE t.name IN :tagNames")
+    Page<Posts> findByTagsIn(List<String> tagNames, Pageable pageable);
 }

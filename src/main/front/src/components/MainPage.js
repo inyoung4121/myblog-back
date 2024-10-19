@@ -1,7 +1,9 @@
+// MainPage.js
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import BlogPost from './BlogPost';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { useTag } from '../contexts/TagContext';  // 경로 확인 필요
 
 const MainPage = () => {
     const [posts, setPosts] = useState([]);
@@ -10,40 +12,47 @@ const MainPage = () => {
     const [hasMore, setHasMore] = useState(true);
     const [error, setError] = useState(null);
     const lastPostElementRef = useRef(null);
-    const initialFetchRef = useRef(false);
+    const { selectedTags } = useTag();
 
-    const fetchPosts = useCallback(async () => {
-        if (loading || !hasMore) return;
+    const fetchPosts = useCallback(async (pageNum) => {
+        if (loading) return;
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`/api/posts?page=${page}&size=10`);
+            const tagsQuery = selectedTags.length > 0 ? `&tags=${selectedTags.join(',')}` : '';
+            const url = `/api/posts?page=${pageNum}&size=10${tagsQuery}`;
+            console.log('Fetching URL:', url);
+            const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            setPosts(prevPosts => [...prevPosts, ...data.content]);
+            console.log('Fetched Data:', data);
+            setPosts(prevPosts => pageNum === 0 ? data.content : [...prevPosts, ...data.content]);
             setHasMore(!data.last);
-            setPage(prevPage => prevPage + 1);
+            setPage(pageNum);
         } catch (error) {
-            setError('Failed to fetch posts. Please try again later.');
+            console.error('Failed to fetch posts:', error);
+            setError('게시글을 불러오는데 실패했습니다. 나중에 다시 시도해주세요.');
         } finally {
             setLoading(false);
         }
-    }, [page, loading, hasMore]);
+    }, [selectedTags]);
 
     useEffect(() => {
-        if (!initialFetchRef.current) {
-            fetchPosts();
-            initialFetchRef.current = true;
-        }
-    }, [fetchPosts]);
+        console.log('Selected Tags:', selectedTags);
+        setPage(0);
+        setPosts([]);
+        setHasMore(true);
+        fetchPosts(0);
+    }, [selectedTags, fetchPosts]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
             entries => {
                 if (entries[0].isIntersecting && hasMore && !loading) {
-                    fetchPosts();
+                    console.log('Fetching more posts...');
+                    fetchPosts(page + 1);
                 }
             },
             { threshold: 1 }
@@ -58,7 +67,7 @@ const MainPage = () => {
                 observer.unobserve(lastPostElementRef.current);
             }
         };
-    }, [fetchPosts, hasMore, loading]);
+    }, [fetchPosts, hasMore, loading, page]);
 
     return (
         <div className="bg-gray-0 min-h-screen flex flex-col">
@@ -75,11 +84,14 @@ const MainPage = () => {
                                 />
                             ))}
                         </div>
-                        {loading && <p className="text-center mt-4 col-span-full">Loading...</p>}
+                        {loading && <p className="text-center mt-4 col-span-full">로딩 중...</p>}
                         {error && <p className="text-red-500 text-center mt-4 col-span-full">{error}</p>}
+                        {!loading && posts.length === 0 && (
+                            <p className="text-center mt-4 col-span-full">게시글이 없습니다.</p>
+                        )}
                     </div>
                 </main>
-                <Sidebar/>
+                <Sidebar />
             </div>
         </div>
     );
