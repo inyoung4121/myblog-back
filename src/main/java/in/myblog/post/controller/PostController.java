@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,32 +32,33 @@ public class PostController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully created post",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ResponseCreatePostDTO.class))),
+                            schema = @Schema(implementation = PostCreationResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input"),
             @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @PostMapping("/create")
-    public ResponseEntity<ResponseCreatePostDTO> createPost(@RequestBody RequestUpdatePostDTO request) {
-        Long userId = ((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
-        ResponseCreatePostDTO post = postService.createPost(request.getTitle(), request.getContent(), userId, request.getTags());
-        return ResponseEntity.ok(post);
+    public ResponseEntity<PostCreationResponseDTO> createPost(@RequestBody RequestUpdatePostDTO request) {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Long userId = Long.valueOf(userDetails.getUsername());
+        Long postId = postService.createPost(request.getTitle(), request.getContent(), userId, request.getTags());
+        return ResponseEntity.ok(new PostCreationResponseDTO(postId));
     }
 
     @Operation(summary = "Update an existing post", description = "Updates an existing blog post")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully updated post",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ResponseUpdatePostDTO.class))),
+                            schema = @Schema(implementation = PostCreationResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Invalid input"),
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
             @ApiResponse(responseCode = "404", description = "Post not found")
     })
     @PutMapping("/update/{postId}")
-    public ResponseEntity<ResponseUpdatePostDTO> updatePost(@PathVariable Long postId,
-                                                            @RequestBody RequestUpdatePostDTO request) {
-        Long userId = ((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
-        ResponseUpdatePostDTO post = postService.updatePost(postId, request.getTitle(), request.getContent(), userId, request.getTags());
-        return ResponseEntity.ok(post);
+    public ResponseEntity<PostCreationResponseDTO> updatePost(@PathVariable Long postId,
+                                                              @RequestBody RequestUpdatePostDTO request) {
+        Long userId = Long.valueOf(((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername());
+        Long updatedPostId = postService.updatePost(postId, request.getTitle(), request.getContent(), userId, request.getTags());
+        return ResponseEntity.ok(new PostCreationResponseDTO(updatedPostId));
     }
 
     @Operation(summary = "Delete a post", description = "Deletes an existing blog post")

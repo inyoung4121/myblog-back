@@ -25,9 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -42,13 +40,13 @@ public class PostServiceImpl implements PostService {
     private final UserRepository userRepository;
     private final LikeRepository likeRepository;
 
+
     @Transactional
-    public ResponseCreatePostDTO createPost(String title, String content, Long authorId, List<String> tags) {
+    public Long createPost(String title, String content, Long authorId, List<String> tags) {
         Users user = userRepository.findById(authorId)
                 .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
 
-        Posts post = Posts
-                .builder()
+        Posts post = Posts.builder()
                 .title(title)
                 .content(content)
                 .author(user)
@@ -56,38 +54,42 @@ public class PostServiceImpl implements PostService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
+        // 태그 자동 생성 및 연결
+        createAndConnectTags(post, tags);
+
         Posts savedPost = postRepository.save(post);
 
-        // 태그 자동 생성 및 연결
-        createAndConnectTags(savedPost, tags);
-
-
-        ResponseCreatePostDTO responseCreatePostDTO = new ResponseCreatePostDTO();
-        return responseCreatePostDTO.toResponseCreatePostDTO(savedPost);
+        return savedPost.getId();
     }
 
 
     @Transactional
-    public ResponseUpdatePostDTO updatePost(Long postId, String title, String content, Long authorId, List<String> tags) {
+    public Long updatePost(Long postId, String title, String content, Long authorId, List<String> tags) {
         Posts post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(postId));
 
-        Users user = userRepository.findById(authorId).orElseThrow(CustomUserExceptions.UserNotFoundException::new);
+        Users user = userRepository.findById(authorId)
+                .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
 
-        if (Objects.equals(user.getId(), post.getAuthor().getId())) {
-            post.updateTitle(title).updateContent(content).updateUpdatedAt();
-        } else {
-            throw new CustomPostExceptions.UserMissMatchException(user.getUsername(),postId);
+        if (!Objects.equals(user.getId(), post.getAuthor().getId())) {
+            throw new CustomPostExceptions.UserMissMatchException(user.getUsername(), postId);
         }
+
+        post.updateTitle(title).updateContent(content).updateUpdatedAt();
 
         // 기존 태그 연결 삭제
         postTagRepository.deleteByPostId(postId);
+        post.getPostTags().clear(); // 영속성 컨텍스트에서도 제거
 
-        // 새로운 태그 생성 및 연결
-        createAndConnectTags(post, tags);
+        // 새로운 태그 생성 및 연결 (태그가 있는 경우에만)
+        if (tags != null && !tags.isEmpty()) {
+            createAndConnectTags(post, tags);
+        }
 
-        ResponseUpdatePostDTO responseUpdatePostDTO = new ResponseUpdatePostDTO();
-        return responseUpdatePostDTO.fromPost(post);
+        // 변경 사항 저장
+        Posts updatedPost = postRepository.save(post);
+
+        return updatedPost.getId();
     }
 
     @Transactional
@@ -148,6 +150,12 @@ public class PostServiceImpl implements PostService {
         responsePageDetailDTO.setAuthorName(post.getAuthor().getUsername());
         responsePageDetailDTO.setLikeCount(likeRepository.countByPostId(postId));
 
+        // 태그 정보 설정
+        List<String> tagNames = post.getPostTags().stream()
+                .map(postTag -> postTag.getTag().getName())
+                .collect(Collectors.toList());
+        responsePageDetailDTO.setTags(tagNames);
+
         // 방문 로그 기록
         VisitLog visitLog = VisitLog.builder()
                 .post(post)
@@ -161,7 +169,6 @@ public class PostServiceImpl implements PostService {
                 .map(this::convertToCommentListDto)
                 .collect(Collectors.toList());
         responsePageDetailDTO.setCommentListDtoList(commentDtos);
-
 
         return responsePageDetailDTO;
     }
@@ -228,21 +235,26 @@ public class PostServiceImpl implements PostService {
     }
 
     private void createAndConnectTags(Posts post, List<String> tagNames) {
-        for (String tagName : tagNames) {
-            Tags tag = tagRepository.findByName(tagName)
-                    .orElseGet(() -> {
-                        Tags newTag = Tags.builder()
-                                .name(tagName)
-                                .build();
-                        return tagRepository.save(newTag);
-                    });
+        if (tagNames == null || tagNames.isEmpty()) {
+            return;  // 태그가 없으면 메서드를 즉시 종료
+        }
 
-            PostTags postTag = PostTags.builder()
-                    .post(post)
-                    .tag(tag)
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            postTagRepository.save(postTag);
+        for (String tagName : tagNames) {
+            if (tagName != null && !tagName.trim().isEmpty()) {  // 빈 문자열 태그 방지
+                Tags tag = tagRepository.findByName(tagName.trim())
+                        .orElseGet(() -> {
+                            Tags newTag = Tags.builder()
+                                    .name(tagName.trim())
+                                    .build();
+                            return tagRepository.save(newTag);
+                        });
+
+                PostTags postTag = PostTags.builder()
+                        .tag(tag)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                post.addPostTag(postTag);
+            }
         }
     }
 }

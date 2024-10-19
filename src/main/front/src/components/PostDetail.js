@@ -250,7 +250,7 @@ const PostDetail = () => {
                 <div className="bg-white shadow-xl rounded-lg overflow-hidden">
                     <div className="p-6 sm:p-10">
                         <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
-                        <div className="text-gray-600 mb-6">
+                        <div className="text-gray-600 mb-2">
                             <span>By {post.authorName}</span>
                             <span className="mx-2">•</span>
                             <span>Created: {formatDate(post.createdAt)}</span>
@@ -261,6 +261,23 @@ const PostDetail = () => {
                                 </>
                             )}
                         </div>
+                        {/* 태그 표시 부분 추가 */}
+                        <div className="mb-6">
+                            {post.tags && post.tags.map((tag, index) => (
+                                <span key={index} className="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2">
+                                #{tag}
+                            </span>
+                            ))}
+                        </div>
+                        <div className="prose max-w-none mb-8">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={customRenderers}
+                            >
+                                {post.content}
+                            </ReactMarkdown>
+                        </div>
+
                         <div className="prose max-w-none mb-8">
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}

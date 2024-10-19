@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-
 const AuthForm = () => {
     const navigate = useNavigate();
 
@@ -37,13 +36,19 @@ const AuthForm = () => {
             const data = await response.json();
             console.log(isLogin ? 'Login successful:' : 'Registration successful:', data);
 
+            // 액세스 토큰을 로컬 스토리지에 저장
+            const accessToken = response.headers.get('Authorization');
+            if (accessToken && accessToken.startsWith('Bearer ')) {
+                localStorage.setItem('eureka_jwt_token', accessToken.slice(7));
+            }
+
             // 사용자 정보를 로컬 스토리지에 저장
             localStorage.setItem('user', JSON.stringify(data));
 
             // 메인 페이지로 리다이렉트
             navigate('/');
         } catch (err) {
-            setError(err.message || (isLogin ? 'Invalid email or password.' : 'Registration failed.'));
+            setError(err.message || 'Authentication failed.');
         } finally {
             setLoading(false);
         }

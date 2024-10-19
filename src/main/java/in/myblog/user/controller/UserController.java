@@ -75,7 +75,7 @@ public class UserController {
     })
     @PutMapping("/secure/password")
     public ResponseEntity<Void> changePassword(@RequestBody RequestChangePasswordDTO request) {
-        Long userId = ((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
+        Long userId = Long.valueOf(((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername());
         userService.changePassword(userId, request.getOldPassword(), request.getNewPassword());
         return ResponseEntity.ok().build();
     }
@@ -90,7 +90,7 @@ public class UserController {
     })
     @PutMapping("/secure/username")
     public ResponseEntity<ResponseUserDTO> changeUsername(@RequestBody RequestChangeNameDTO request, HttpServletResponse response) {
-        Long userId = ((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
+        Long userId = Long.valueOf(((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername());
         Users user = userService.changeUsername(userId, request.getNewUserName());
         ResponseUserDTO responseDTO = new ResponseUserDTO(user);
         return ResponseEntity.ok(responseDTO);
@@ -103,7 +103,7 @@ public class UserController {
     })
     @PostMapping("/secure/role-change-request")
     public ResponseEntity<RoleChangeRequest> requestRoleChange() {
-        Long userId = ((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
+        Long userId = Long.valueOf(((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername());
         RoleChangeRequest request = userService.requestRoleChange(userId);
         return ResponseEntity.ok(request);
     }

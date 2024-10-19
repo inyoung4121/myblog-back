@@ -15,6 +15,8 @@ public class ResponsePageDetailDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long likeCount;
+    private List<String> tags;
+
 
     private String authorName;
     private List<CommentListDto> commentListDtoList;

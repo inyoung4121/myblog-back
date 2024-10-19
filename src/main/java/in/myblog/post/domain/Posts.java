@@ -63,4 +63,12 @@ public class Posts {
         this.updatedAt = LocalDateTime.now();
         return this;
     }
+
+    public void addPostTag(PostTags postTag) {
+        if (this.postTags == null) {
+            this.postTags = new ArrayList<>();
+        }
+        this.postTags.add(postTag);
+        postTag.setPost(this);
+    }
 }
