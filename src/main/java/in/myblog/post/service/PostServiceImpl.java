@@ -1,18 +1,14 @@
 package in.myblog.post.service;
 
 
-import com.querydsl.core.group.GroupBy;
-import com.querydsl.core.types.Projections;
-import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import in.myblog.comment.domain.Comments;
 import in.myblog.comment.domain.QComments;
 import in.myblog.comment.dto.CommentListDto;
 import in.myblog.like.domain.Like;
-import in.myblog.like.domain.QLike;
 import in.myblog.like.repository.LikeRepository;
 import in.myblog.post.domain.*;
 import in.myblog.post.dto.*;
@@ -27,11 +23,11 @@ import in.myblog.user.exception.CustomUserExceptions;
 import in.myblog.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,11 +37,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.querydsl.core.types.Projections.constructor;
-import static in.myblog.comment.domain.QComments.comments;
 import static in.myblog.like.domain.QLike.like;
 import static in.myblog.post.domain.QPostTags.postTags;
 import static in.myblog.post.domain.QPosts.posts;
-import static in.myblog.post.domain.QTags.tags;
 import static in.myblog.user.domain.QUsers.users;
 
 @Slf4j
@@ -63,7 +57,7 @@ public class PostServiceImpl implements PostService {
 
 
     @Transactional
-    @CachePut(value = "tags")
+    @CacheEvict(value = "tags", allEntries = true)
     public Long createPost(String title, String content, Long authorId, List<String> tags) {
         Users user = userRepository.findById(authorId)
                 .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
@@ -86,7 +80,7 @@ public class PostServiceImpl implements PostService {
 
 
     @Transactional
-    @CachePut(value = "tags")
+    @CacheEvict(value = "tags", allEntries = true)
     public Long updatePost(Long postId, String title, String content, Long authorId, List<String> tags) {
         Posts post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(postId));
@@ -204,14 +198,11 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public ResponsePageDetailDTO getPost(Long postId, String ipAddress, String userAgent) {
         QUsers postAuthor = new QUsers("postAuthor");
-        QUsers commentAuthor = new QUsers("commentAuthor");
-        QComments comments = QComments.comments;
         QPostTags postTags = QPostTags.postTags;
         QTags tags = QTags.tags;
 
-        // DTO로 직접 조회
-        JPAQuery<ResponsePageDetailDTO> query = queryFactory
-                .select(constructor(ResponsePageDetailDTO.class,
+        JPAQuery<Tuple> postQuery = queryFactory
+                .select(
                         posts.title,
                         posts.content,
                         posts.createdAt,
@@ -219,33 +210,60 @@ public class PostServiceImpl implements PostService {
                         JPAExpressions.select(like.count().intValue())
                                 .from(like)
                                 .where(like.post.id.eq(posts.id)),
-                        Expressions.stringTemplate(
-                                "GROUP_CONCAT({0})",
-                                tags.name
-                        ),
                         postAuthor.username,
-                        GroupBy.list(constructor(CommentListDto.class,
-                                comments.id,
-                                comments.content,
-                                comments.createdAt,
-                                comments.updatedAt,
-                                commentAuthor.username,
-                                comments.isAnonymous,
-                                comments.anonymousName
-                        ))
-                ))
+                        tags.name
+                )
                 .from(posts)
                 .leftJoin(posts.author, postAuthor)
-                .leftJoin(posts.comments, comments)
-                .leftJoin(comments.author, commentAuthor)
                 .leftJoin(posts.postTags, postTags)
                 .leftJoin(postTags.tag, tags)
-                .where(posts.id.eq(postId))
-                .groupBy(posts.id, postAuthor.username, posts.createdAt, posts.updatedAt, posts.title, posts.content)
-                .orderBy(comments.createdAt.desc());
+                .where(posts.id.eq(postId));
 
-        ResponsePageDetailDTO result = Optional.ofNullable(query.fetchOne())
-                .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(postId));
+        List<Tuple> postResults = postQuery.fetch();
+
+        if (postResults.isEmpty()) {
+            throw new CustomPostExceptions.PostNotFoundException(postId);
+        }
+
+        // 2. 댓글 목록 별도 조회
+        QUsers commentAuthor = new QUsers("commentAuthor");
+        QComments comments = QComments.comments;
+
+        List<CommentListDto> commentsList = queryFactory
+                .select(constructor(CommentListDto.class,
+                        comments.id,
+                        comments.content,
+                        comments.createdAt,
+                        comments.updatedAt,
+                        commentAuthor.username,
+                        comments.isAnonymous,
+                        comments.anonymousName
+                ))
+                .from(comments)
+                .leftJoin(comments.author, commentAuthor)
+                .where(comments.post.id.eq(postId))
+                .orderBy(comments.createdAt.desc())
+                .fetch();
+
+        // 3. 결과 조합
+        Tuple firstRow = postResults.get(0);
+        Set<String> tagNames = postResults.stream()
+                .map(tuple -> tuple.get(tags.name))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        ResponsePageDetailDTO result = new ResponsePageDetailDTO(
+                firstRow.get(posts.title),
+                firstRow.get(posts.content),
+                firstRow.get(posts.createdAt),
+                firstRow.get(posts.updatedAt),
+                firstRow.get(JPAExpressions.select(like.count().intValue())
+                        .from(like)
+                        .where(like.post.id.eq(posts.id))),
+                String.join(",", tagNames),
+                firstRow.get(postAuthor.username),
+                commentsList
+        );
 
         // 방문 로그 기록
         saveVisitLog(postId, ipAddress, userAgent);

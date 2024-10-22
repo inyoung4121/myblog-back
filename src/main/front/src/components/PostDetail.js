@@ -8,8 +8,6 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Header from './Header';
 import { v4 as uuidv4 } from 'uuid';
 
-
-
 const formatDate = (dateString) => {
     const date = new Date(dateString);
     const year = date.getFullYear().toString().slice(-2);
@@ -60,7 +58,6 @@ const Comment = ({ comment, currentUserId, onDelete }) => {
         setDeletePassword('');
     };
 
-
     const showDeleteButton = comment.anonymous || comment.authorId === currentUserId;
 
     return (
@@ -84,24 +81,30 @@ const Comment = ({ comment, currentUserId, onDelete }) => {
             <p className="mb-2">{comment.content}</p>
             {showDeleteConfirm && (
                 <div className="mt-2 flex items-center">
-                    <input
-                        type="password"
-                        value={deletePassword}
-                        onChange={(e) => setDeletePassword(e.target.value)}
-                        placeholder="Enter delete password"
-                        className="mr-2 p-1 border rounded flex-grow"
-                    />
+                    {comment.anonymous && (
+                        <input
+                            type="password"
+                            value={deletePassword}
+                            onChange={(e) => setDeletePassword(e.target.value)}
+                            placeholder="삭제 비밀번호를 입력하세요"
+                            className="mr-2 p-1 border rounded flex-grow"
+                        />
+                    )}
                     <button
                         onClick={handleDeleteConfirm}
                         className="bg-red-500 text-white px-2 py-1 text-sm rounded hover:bg-red-600"
                     >
-                        Confirm Delete
+                        삭제 확인
                     </button>
                     <button
-                        onClick={() => setShowDeleteConfirm(false)}
+                        onClick={() => {
+                            setShowDeleteConfirm(false);
+                            setDeletePassword('');
+                            setError('');
+                        }}
                         className="ml-2 bg-gray-300 text-gray-700 px-2 py-1 text-sm rounded hover:bg-gray-400"
                     >
-                        Cancel
+                        취소
                     </button>
                 </div>
             )}
@@ -115,6 +118,7 @@ const PostDetail = () => {
     const [comments, setComments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [commentError, setCommentError] = useState('');
     const [newComment, setNewComment] = useState('');
     const [anonymousName, setAnonymousName] = useState('');
     const [anonymousPassword, setAnonymousPassword] = useState('');
@@ -124,14 +128,12 @@ const PostDetail = () => {
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
     const [deviceId, setDeviceId] = useState('');
-    const [isLiking, setIsLiking] = useState(false); // 좋아요 처리 중 상태 추가
-
+    const [isLiking, setIsLiking] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem('eureka_jwt_token');
         setIsLoggedIn(!!token);
 
-        // 디바이스 ID 확인 및 생성
         let storedDeviceId = localStorage.getItem('device_id');
         if (!storedDeviceId) {
             storedDeviceId = uuidv4();
@@ -140,7 +142,6 @@ const PostDetail = () => {
         setDeviceId(storedDeviceId);
 
         const fetchPostAndComments = async () => {
-            console.log('API 요청 시작 - 게시글');
             try {
                 const postResponse = await axios.get(`/api/posts/${postId}`);
                 setPost(postResponse.data);
@@ -148,13 +149,12 @@ const PostDetail = () => {
                 setLikeCount(postResponse.data.likeCount);
                 setLoading(false);
 
-                // 좋아요 상태 확인
                 const likeStatusResponse = await axios.get(`/api/posts/${postId}/like`, {
                     params: { deviceId: storedDeviceId }
                 });
                 setIsLiked(likeStatusResponse.data.liked);
             } catch (err) {
-                setError('Failed to fetch post details');
+                setError('게시글을 불러오는데 실패했습니다.');
                 setLoading(false);
             }
         };
@@ -162,9 +162,8 @@ const PostDetail = () => {
         fetchPostAndComments();
     }, [postId]);
 
-
     const handleLike = async () => {
-        if (isLiking) return; // 처리 중일 때는 조용히 무시
+        if (isLiking) return;
 
         try {
             setIsLiking(true);
@@ -180,18 +179,24 @@ const PostDetail = () => {
             setIsLiked(response.data.liked);
             setLikeCount(response.data.totalLikes);
         } catch (err) {
-            setError('Failed to update like status');
+            setError('좋아요 처리 중 오류가 발생했습니다.');
         } finally {
-            setIsLiking(false); // API 응답 완료 후 바로 다시 클릭 가능
+            setIsLiking(false);
         }
     };
 
-
     const handleCommentSubmit = async (e) => {
         e.preventDefault();
+        setCommentError('');
+
         try {
             const token = localStorage.getItem('eureka_jwt_token');
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+            if (!isLoggedIn && (!anonymousName.trim() || !anonymousPassword.trim())) {
+                setCommentError('닉네임과 비밀번호를 모두 입력해주세요.');
+                return;
+            }
 
             const commentDto = {
                 content: newComment,
@@ -202,13 +207,16 @@ const PostDetail = () => {
             };
 
             const response = await axios.post('/api/comments', commentDto, { headers });
-            // 새 댓글을 목록의 맨 앞에 추가
-            setComments([...comments, response.data]);
+            setComments(prevComments => [response.data, ...prevComments]);
+
+            // 입력 폼 초기화
             setNewComment('');
-            setAnonymousName('');
-            setAnonymousPassword('');
+            if (!isLoggedIn) {
+                setAnonymousName('');
+                setAnonymousPassword('');
+            }
         } catch (err) {
-            setError('Failed to submit comment');
+            setCommentError(err.response?.data?.message || '댓글 작성 중 오류가 발생했습니다.');
         }
     };
 
@@ -246,7 +254,7 @@ const PostDetail = () => {
 
     if (loading) return <div className="pt-20 text-center">Loading...</div>;
     if (error) return <div className="pt-20 text-center text-red-600">{error}</div>;
-    if (!post) return <div className="pt-20 text-center">No post found</div>;
+    if (!post) return <div className="pt-20 text-center">게시글을 찾을 수 없습니다.</div>;
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -266,13 +274,12 @@ const PostDetail = () => {
                                 </>
                             )}
                         </div>
-                        {/* 태그 표시 부분 추가 */}
                         <div className="mb-6">
                             {post.tags && post.tags.map((tag, index) => (
                                 <span key={index}
                                       className="inline-block bg-black rounded-md px-2 py-1.5 text-xs font-medium text-white mr-2 mb-2">
-                                {tag}
-                            </span>
+                                    {tag}
+                                </span>
                             ))}
                         </div>
                         <div className="prose max-w-none mb-8">
@@ -306,8 +313,8 @@ const PostDetail = () => {
                                                   d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
                                         </svg>
                                         <span className="text-lg font-semibold">
-                좋아요 {likeCount}개
-            </span>
+                                            좋아요 {likeCount}개
+                                        </span>
                                     </button>
                                 </div>
                             </div>
@@ -316,54 +323,83 @@ const PostDetail = () => {
                                 <Comment
                                     key={comment.id}
                                     comment={comment}
-                                    currentUserId={isLoggedIn ? 'logged-in-user-id' : null}
+                                    currentUserId={currentUserId}
                                     onDelete={handleCommentDelete}
                                 />
                             ))}
 
                             <form onSubmit={handleCommentSubmit} className="mt-8">
-                                <div className="flex items-center mb-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-gray-500"
-                                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                    </svg>
-                                    <input
-                                        type="text"
-                                        value={anonymousName}
-                                        onChange={(e) => setAnonymousName(e.target.value)}
-                                        className="p-2 border-b border-gray-300 focus:border-blue-500 outline-none w-44"
-                                        placeholder="댓글 닉네임"
-                                        required={!isLoggedIn}
+                                {!isLoggedIn && (
+                                    <>
+                                        <div className="flex items-center mb-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                 className="h-6 w-6 mr-2 text-gray-500"
+                                                 fill="none"
+                                                 viewBox="0 0 24 24"
+                                                 stroke="currentColor">
+
+                                                <path strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      strokeWidth={2}
+                                                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                            </svg>
+                                            <input
+                                                type="text"
+                                                value={anonymousName}
+                                                onChange={(e) => setAnonymousName(e.target.value)}
+                                                className="p-2 border-b border-gray-300 focus:border-blue-500 outline-none w-44"
+                                                placeholder="닉네임을 입력해주세요"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="flex items-center mb-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg"
+                                                 className="h-6 w-6 mr-2 text-gray-500"
+                                                 fill="none"
+                                                 viewBox="0 0 24 24"
+                                                 stroke="currentColor">
+                                                <path strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      strokeWidth={2}
+                                                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                            </svg>
+                                            <input
+                                                type="password"
+                                                value={anonymousPassword}
+                                                onChange={(e) => setAnonymousPassword(e.target.value)}
+                                                className="p-2 border-b border-gray-300 focus:border-blue-500 outline-none w-44"
+                                                placeholder="비밀번호를 입력해주세요"
+                                                required
+                                            />
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className="relative">
+                                    <textarea
+                                        value={newComment}
+                                        onChange={(e) => setNewComment(e.target.value)}
+                                        className="w-full mb-4 p-2 border border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                                        rows="6"
+                                        placeholder={isLoggedIn ?
+                                            "댓글을 작성해주세요." :
+                                            "비회원으로 댓글을 작성합니다. 댓글 삭제 시 입력하신 비밀번호가 필요합니다."}
+                                        required
                                     />
+                                    {commentError && (
+                                        <div className="text-red-500 text-sm mb-2">{commentError}</div>
+                                    )}
                                 </div>
-                                <div className="flex items-center mb-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-gray-500"
-                                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                                    </svg>
-                                    <input
-                                        type="password"
-                                        value={anonymousPassword}
-                                        onChange={(e) => setAnonymousPassword(e.target.value)}
-                                        className="p-2 border-b border-gray-300 focus:border-blue-500 outline-none w-44"
-                                        placeholder="임시 비밀번호"
-                                        required={!isLoggedIn}
-                                    />
-                                </div>
-                                <textarea
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
-                                    className="w-full mb-4 p-2 border border-gray-300 rounded-lg focus:border-blue-500 outline-none"
-                                    rows="6"
-                                    placeholder="댓글 내용을 작성해주세요."
-                                    required
-                                />
-                                <div className="flex justify-end">
+
+                                <div className="flex justify-between items-center">
+                                    {!isLoggedIn && (
+                                        <span className="text-sm text-gray-500">
+                                            회원으로 댓글을 작성하시면 더 많은 기능을 사용할 수 있습니다.
+                                        </span>
+                                    )}
                                     <button
                                         type="submit"
-                                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
                                     >
                                         댓글 작성
                                     </button>

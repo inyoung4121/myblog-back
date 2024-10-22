@@ -12,6 +12,8 @@ import in.myblog.post.repository.PostRepository;
 import in.myblog.user.domain.Users;
 import in.myblog.user.exception.CustomUserExceptions;
 import in.myblog.user.repository.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,11 +29,11 @@ public class CommentServiceImpl implements CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final EntityManager entityManager;
 
     @Transactional
     public List<CommentListDto> getCommentsByPostId(Long postId) {
-        Posts post = postRepository.findById(postId)
-                .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(postId));
+        Posts post = getPostReference(postId);
 
         List<Comments> comments = commentRepository.findByPostOrderByCreatedAtDesc(post);
         return comments.stream()
@@ -41,8 +43,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Transactional
     public CommentListDto createComment(CommentDto commentDto) {
-        Posts post = postRepository.findById(commentDto.getPostId())
-                .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(commentDto.getPostId()));
+        Posts post = getPostReference(commentDto.getPostId());
 
         Comments comment = Comments.builder()
                 .content(commentDto.getContent())
@@ -113,18 +114,6 @@ public class CommentServiceImpl implements CommentService {
         }
     }
 
-
-    private CommentDto convertToDto(Comments comment) {
-        return CommentDto.builder()
-                .id(comment.getId())
-                .content(comment.getContent())
-                .postId(comment.getPost().getId())
-                .userId(comment.getAuthor() != null ? comment.getAuthor().getId() : null)
-                .anonymous(comment.isAnonymous())
-                .anonymousName(comment.getAnonymousName())
-                .build();
-    }
-
     private CommentListDto convertToListDto(Comments comment) {
         return CommentListDto.builder()
                 .id(comment.getId())
@@ -135,5 +124,12 @@ public class CommentServiceImpl implements CommentService {
                 .anonymous(comment.isAnonymous())
                 .anonymousName(comment.getAnonymousName())
                 .build();
+    }
+
+    private Posts getPostReference(Long postId) {
+        if (!postRepository.existsById(postId)) {
+            throw new CustomPostExceptions.PostNotFoundException(postId);
+        }
+        return entityManager.getReference(Posts.class, postId);
     }
 }

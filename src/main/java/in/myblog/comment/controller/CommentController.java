@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,6 +47,12 @@ public class CommentController {
     })
     @PostMapping
     public ResponseEntity<CommentListDto> createComment(@RequestBody CommentDto commentDto) {
+        if(!commentDto.isAnonymous()){
+            UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            Long userId = Long.valueOf(userDetails.getUsername());
+            commentDto.setUserId(userId);
+        }
+
         return ResponseEntity.ok(commentService.createComment(commentDto));
     }
 
@@ -60,9 +68,14 @@ public class CommentController {
     @PutMapping("/{commentId}")
     public ResponseEntity<CommentListDto> updateComment(@PathVariable Long commentId,
                                                     @RequestBody CommentDto commentDto,
-                                                    @RequestParam Long userId,
                                                     @RequestParam(required = false) String deletePassword) {
-        return ResponseEntity.ok(commentService.updateComment(commentId, commentDto, userId, deletePassword));
+        if(!commentDto.isAnonymous()){
+            UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            Long userId = Long.valueOf(userDetails.getUsername());
+            commentDto.setUserId(userId);
+        }
+
+        return ResponseEntity.ok(commentService.updateComment(commentId, commentDto, commentDto.getUserId(), deletePassword));
     }
 
     @Operation(summary = "댓글 삭제", description = "댓글 ID로 특정 댓글을 삭제합니다.")
