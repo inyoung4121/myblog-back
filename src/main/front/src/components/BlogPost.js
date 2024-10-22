@@ -50,7 +50,7 @@ const BlogPost = React.forwardRef(({ post }, ref) => {
                             textOverflow: 'ellipsis'
                         }}
                     >
-                        {post.contentPreview}
+                        {post.content}
                     </p>
                     <div className="flex flex-wrap gap-2 mt-2">
                         {post.tags.map((tag, index) => (

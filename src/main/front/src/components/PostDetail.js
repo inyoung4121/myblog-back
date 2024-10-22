@@ -124,6 +124,7 @@ const PostDetail = () => {
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
     const [deviceId, setDeviceId] = useState('');
+    const [isLiking, setIsLiking] = useState(false); // 좋아요 처리 중 상태 추가
 
 
     useEffect(() => {
@@ -139,13 +140,11 @@ const PostDetail = () => {
         setDeviceId(storedDeviceId);
 
         const fetchPostAndComments = async () => {
+            console.log('API 요청 시작 - 게시글');
             try {
-                const [postResponse, commentsResponse] = await Promise.all([
-                    axios.get(`/api/posts/${postId}`),
-                    axios.get(`/api/comments/post/${postId}`)
-                ]);
+                const postResponse = await axios.get(`/api/posts/${postId}`);
                 setPost(postResponse.data);
-                setComments(commentsResponse.data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+                setComments(postResponse.data.commentListDtoList || []);
                 setLikeCount(postResponse.data.likeCount);
                 setLoading(false);
 
@@ -155,7 +154,7 @@ const PostDetail = () => {
                 });
                 setIsLiked(likeStatusResponse.data.liked);
             } catch (err) {
-                setError('Failed to fetch post details and comments');
+                setError('Failed to fetch post details');
                 setLoading(false);
             }
         };
@@ -163,8 +162,12 @@ const PostDetail = () => {
         fetchPostAndComments();
     }, [postId]);
 
+
     const handleLike = async () => {
+        if (isLiking) return; // 처리 중일 때는 조용히 무시
+
         try {
+            setIsLiking(true);
             if (!deviceId) {
                 setError('Device ID not found');
                 return;
@@ -178,6 +181,8 @@ const PostDetail = () => {
             setLikeCount(response.data.totalLikes);
         } catch (err) {
             setError('Failed to update like status');
+        } finally {
+            setIsLiking(false); // API 응답 완료 후 바로 다시 클릭 가능
         }
     };
 

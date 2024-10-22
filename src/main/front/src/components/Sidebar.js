@@ -8,8 +8,6 @@ const Sidebar = () => {
     const [error, setError] = useState(null);
     const { selectedTags, toggleTag, clearTags } = useTag();
 
-    const { visitorCounts, tags } = sidebarData || {};
-
     const checkAndTrackVisit = async () => {
         const today = new Date().toISOString().split('T')[0];
         const lastVisit = localStorage.getItem('lastVisit');
@@ -64,6 +62,13 @@ const Sidebar = () => {
             </aside>
         );
     }
+
+    const visitorCounts = sidebarData?.visitorCounts ?? {
+        total: 0,
+        yesterday: 0,
+        today: 0
+    };
+    const tags = sidebarData?.tags ?? [];
 
     return (
         <aside className="bg-white shadow-md w-80 fixed top-0 right-0 bottom-0 flex flex-col hidden lg:flex">
