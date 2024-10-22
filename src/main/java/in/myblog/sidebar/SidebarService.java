@@ -5,6 +5,7 @@ import in.myblog.post.domain.TotalVisitCount;
 import in.myblog.post.repository.TagRepository;
 import in.myblog.post.repository.TotalVisitCountRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -30,7 +31,8 @@ public class SidebarService {
         return new SidebarDataDTO(visitorCounts, tags);
     }
 
-    private VisitorCountsDTO getVisitorCounts() {
+    @Cacheable(value = "visitCounts")
+    public VisitorCountsDTO getVisitorCounts() {
         LocalDate today = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);
 
@@ -45,7 +47,8 @@ public class SidebarService {
         return new VisitorCountsDTO(totalCount, todayCount, yesterdayCount);
     }
 
-    private List<String> getTags() {
+    @Cacheable(value = "tags")
+    public List<String> getTags() {
         return tagRepository.findAll().stream()
                 .map(Tags::getName)
                 .collect(Collectors.toList());

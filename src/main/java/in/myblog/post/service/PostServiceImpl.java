@@ -19,6 +19,7 @@ import in.myblog.user.domain.Users;
 import in.myblog.user.exception.CustomUserExceptions;
 import in.myblog.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -44,6 +45,7 @@ public class PostServiceImpl implements PostService {
 
 
     @Transactional
+    @CachePut(value = "tags")
     public Long createPost(String title, String content, Long authorId, List<String> tags) {
         Users user = userRepository.findById(authorId)
                 .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
@@ -66,6 +68,7 @@ public class PostServiceImpl implements PostService {
 
 
     @Transactional
+    @CachePut(value = "tags")
     public Long updatePost(Long postId, String title, String content, Long authorId, List<String> tags) {
         Posts post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(postId));
@@ -95,6 +98,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Transactional
+    @CachePut(value = "tags")
     public void deletePost(Long postId) {
         postRepository.deleteById(postId);
     }

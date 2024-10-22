@@ -37,19 +37,12 @@ const Sidebar = () => {
     };
 
     useEffect(() => {
-        const fetchSidebarData = async () => {
-            try {
-                const response = await axios.get('/api/sidebar-data');
-                setSidebarData(response.data);
-                setLoading(false);
-            } catch (error) {
-                console.error('Failed to fetch sidebar data:', error);
-                setError('Failed to load data. Please try again later.');
-                setLoading(false);
-            }
+        const initializeSidebar = async () => {
+            await checkAndTrackVisit();  // 방문자 체크 먼저
+            await fetchSidebarData();    // 사이드바 데이터 fetch
         };
 
-        fetchSidebarData();
+        initializeSidebar();
     }, []);
 
     if (loading) {
