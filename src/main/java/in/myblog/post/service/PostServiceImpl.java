@@ -1,6 +1,7 @@
 package in.myblog.post.service;
 
 
+import com.querydsl.core.group.GroupBy;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
@@ -8,6 +9,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import in.myblog.comment.domain.Comments;
+import in.myblog.comment.domain.QComments;
 import in.myblog.comment.dto.CommentListDto;
 import in.myblog.like.domain.Like;
 import in.myblog.like.domain.QLike;
@@ -37,7 +39,13 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.querydsl.core.types.dsl.Expressions.stringTemplate;
+import static com.querydsl.core.types.Projections.constructor;
+import static in.myblog.comment.domain.QComments.comments;
+import static in.myblog.like.domain.QLike.like;
+import static in.myblog.post.domain.QPostTags.postTags;
+import static in.myblog.post.domain.QPosts.posts;
+import static in.myblog.post.domain.QTags.tags;
+import static in.myblog.user.domain.QUsers.users;
 
 
 @RequiredArgsConstructor
@@ -114,15 +122,11 @@ public class PostServiceImpl implements PostService {
 
     @Transactional(readOnly = true)
     public Page<PostSummaryDTO> getRecentPosts(int page, int size, List<String> tags) {
-        QPosts posts = QPosts.posts;
-        QPostTags postTags = QPostTags.postTags;
         QTags tag = QTags.tags;
-        QUsers users = QUsers.users;
-        QLike like = QLike.like;
 
         // DTO로 직접 조회
         JPAQuery<PostSummaryDTO> query = queryFactory
-                .select(Projections.constructor(PostSummaryDTO.class,
+                .select(constructor(PostSummaryDTO.class,
                         posts.id,
                         posts.title,
                         users.username,
@@ -196,60 +200,66 @@ public class PostServiceImpl implements PostService {
         );
     }
 
-    // 태그 조건을 별도 메소드로 분리
-    private BooleanExpression tagCondition(List<String> tags) {
-        if (tags == null || tags.isEmpty()) {
-            return null;
-        }
-
-        QPosts posts = QPosts.posts;
-        QPostTags postTag = QPostTags.postTags;
-        QTags tag = QTags.tags;
-
-        return posts.id.in(
-                JPAExpressions
-                        .select(postTag.post.id)
-                        .from(postTag)
-                        .join(postTag.tag, tag)
-                        .where(tag.name.in(tags))
-        );
-    }
-
-
     @Transactional
     public ResponsePageDetailDTO getPost(Long postId, String ipAddress, String userAgent) {
-        Posts post = postRepository.findByIdWithAuthorAndComments(postId)
+        QUsers postAuthor = new QUsers("postAuthor");
+        QUsers commentAuthor = new QUsers("commentAuthor");
+        QComments comments = QComments.comments;
+        QPostTags postTags = QPostTags.postTags;
+        QTags tags = QTags.tags;
+
+        // DTO로 직접 조회
+        JPAQuery<ResponsePageDetailDTO> query = queryFactory
+                .select(constructor(ResponsePageDetailDTO.class,
+                        posts.title,
+                        posts.content,
+                        posts.createdAt,
+                        posts.updatedAt,
+                        JPAExpressions.select(like.count().intValue())
+                                .from(like)
+                                .where(like.post.id.eq(posts.id)),
+                        Expressions.stringTemplate(
+                                "GROUP_CONCAT({0})",
+                                tags.name
+                        ),
+                        postAuthor.username,
+                        GroupBy.list(constructor(CommentListDto.class,
+                                comments.id,
+                                comments.content,
+                                comments.createdAt,
+                                comments.updatedAt,
+                                commentAuthor.username,
+                                comments.isAnonymous,
+                                comments.anonymousName
+                        ))
+                ))
+                .from(posts)
+                .leftJoin(posts.author, postAuthor)
+                .leftJoin(posts.comments, comments)
+                .leftJoin(comments.author, commentAuthor)
+                .leftJoin(posts.postTags, postTags)
+                .leftJoin(postTags.tag, tags)
+                .where(posts.id.eq(postId))
+                .groupBy(posts.id, postAuthor.username, posts.createdAt, posts.updatedAt, posts.title, posts.content)
+                .orderBy(comments.createdAt.desc());
+
+        ResponsePageDetailDTO result = Optional.ofNullable(query.fetchOne())
                 .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(postId));
 
-        ResponsePageDetailDTO responsePageDetailDTO = new ResponsePageDetailDTO();
-        responsePageDetailDTO.setTitle(post.getTitle());
-        responsePageDetailDTO.setContent(post.getContent());
-        responsePageDetailDTO.setCreatedAt(post.getCreatedAt());
-        responsePageDetailDTO.setUpdatedAt(post.getUpdatedAt());
-        responsePageDetailDTO.setAuthorName(post.getAuthor().getUsername());
-        responsePageDetailDTO.setLikeCount(likeRepository.countByPostId(postId));
-
-        // 태그 정보 설정
-        List<String> tagNames = post.getPostTags().stream()
-                .map(postTag -> postTag.getTag().getName())
-                .collect(Collectors.toList());
-        responsePageDetailDTO.setTags(tagNames);
-
         // 방문 로그 기록
+        saveVisitLog(postId, ipAddress, userAgent);
+
+        return result;
+    }
+
+    private void saveVisitLog(Long postId, String ipAddress, String userAgent) {
         VisitLog visitLog = VisitLog.builder()
-                .post(post)
+                .post(Posts.builder().id(postId).build())
                 .ipAddress(ipAddress)
                 .userAgent(userAgent)
                 .visitedAt(LocalDateTime.now())
                 .build();
         visitLogRepository.save(visitLog);
-
-        List<CommentListDto> commentDtos = post.getComments().stream()
-                .map(this::convertToCommentListDto)
-                .collect(Collectors.toList());
-        responsePageDetailDTO.setCommentListDtoList(commentDtos);
-
-        return responsePageDetailDTO;
     }
 
     @Transactional

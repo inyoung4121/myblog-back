@@ -139,13 +139,11 @@ const PostDetail = () => {
         setDeviceId(storedDeviceId);
 
         const fetchPostAndComments = async () => {
+            console.log('API 요청 시작 - 게시글');
             try {
-                const [postResponse, commentsResponse] = await Promise.all([
-                    axios.get(`/api/posts/${postId}`),
-                    axios.get(`/api/comments/post/${postId}`)
-                ]);
+                const postResponse = await axios.get(`/api/posts/${postId}`);
                 setPost(postResponse.data);
-                setComments(commentsResponse.data.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+                setComments(postResponse.data.commentListDtoList || []);
                 setLikeCount(postResponse.data.likeCount);
                 setLoading(false);
 
@@ -155,7 +153,7 @@ const PostDetail = () => {
                 });
                 setIsLiked(likeStatusResponse.data.liked);
             } catch (err) {
-                setError('Failed to fetch post details and comments');
+                setError('Failed to fetch post details');
                 setLoading(false);
             }
         };
