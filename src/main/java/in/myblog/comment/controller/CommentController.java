@@ -75,7 +75,6 @@ public class CommentController {
     public ResponseEntity<Void> deleteComment(@PathVariable Long commentId,
                                               @RequestParam(required = false) Long userId,
                                               @RequestParam(required = false) String deletePassword) {
-        System.out.println(commentId+deletePassword);
         commentService.deleteComment(commentId, userId, deletePassword);
         return ResponseEntity.ok().build();
     }

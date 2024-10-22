@@ -48,7 +48,7 @@ public class Posts {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
     private List<VisitLog> visitLogs = new ArrayList<>();
 
-    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "post", fetch = FetchType.LAZY)
     private List<Like> likes = new ArrayList<>();
 
     public Posts updateTitle(String title) {

@@ -124,6 +124,7 @@ const PostDetail = () => {
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
     const [deviceId, setDeviceId] = useState('');
+    const [isLiking, setIsLiking] = useState(false); // 좋아요 처리 중 상태 추가
 
 
     useEffect(() => {
@@ -161,8 +162,12 @@ const PostDetail = () => {
         fetchPostAndComments();
     }, [postId]);
 
+
     const handleLike = async () => {
+        if (isLiking) return; // 처리 중일 때는 조용히 무시
+
         try {
+            setIsLiking(true);
             if (!deviceId) {
                 setError('Device ID not found');
                 return;
@@ -176,6 +181,8 @@ const PostDetail = () => {
             setLikeCount(response.data.totalLikes);
         } catch (err) {
             setError('Failed to update like status');
+        } finally {
+            setIsLiking(false); // API 응답 완료 후 바로 다시 클릭 가능
         }
     };
 

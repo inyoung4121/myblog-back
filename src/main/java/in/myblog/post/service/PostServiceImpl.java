@@ -26,6 +26,7 @@ import in.myblog.user.domain.Users;
 import in.myblog.user.exception.CustomUserExceptions;
 import in.myblog.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -47,7 +48,7 @@ import static in.myblog.post.domain.QPosts.posts;
 import static in.myblog.post.domain.QTags.tags;
 import static in.myblog.user.domain.QUsers.users;
 
-
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class PostServiceImpl implements PostService {
@@ -264,39 +265,44 @@ public class PostServiceImpl implements PostService {
 
     @Transactional
     public LikeResponseDTO likePost(Long postId, String deviceId) {
-        Posts post = postRepository.findById(postId)
-                .orElseThrow(() -> new RuntimeException("Post not found"));
 
-        Like like = likeRepository.findByPostIdAndDeviceId(postId, deviceId)
-                .orElse(null);
+        if (!postRepository.existsById(postId)) {
+            throw new CustomPostExceptions.PostNotFoundException(postId);
+        }
+
+        // 좋아요 존재 여부 확인
+        Optional<Like> existingLike = postRepository.findLikeByPostIdAndDeviceId(postId, deviceId);
+        long likeCheckTime = System.currentTimeMillis();
 
         boolean isLiked;
         String message;
 
-        if (like == null) {
-            // 좋아요가 없으면 새로 생성
-            like = Like.builder()
-                    .post(post)
-                    .deviceId(deviceId)
-                    .build();
-            likeRepository.save(like);
-            isLiked = true;
-            message = "좋아요가 추가되었습니다.";
-        } else {
-            // 좋아요가 이미 있으면 제거
-            likeRepository.delete(like);
+        if (existingLike.isPresent()) {
+            // 좋아요 삭제
+            likeRepository.deleteById(existingLike.get().getId());
             isLiked = false;
             message = "좋아요가 취소되었습니다.";
+        } else {
+            // 새 좋아요 추가
+            Like newLike = Like.builder()
+                    .post(Posts.builder().id(postId).build())
+                    .deviceId(deviceId)
+                    .build();
+            likeRepository.save(newLike);
+            isLiked = true;
+            message = "좋아요가 추가되었습니다.";
         }
 
-        postRepository.save(post);
+        long totalLikes = postRepository.countLikesByPostId(postId);
 
-        return LikeResponseDTO.builder()
+        LikeResponseDTO response = LikeResponseDTO.builder()
                 .postId(postId)
                 .liked(isLiked)
-                .totalLikes(likeRepository.countByPostId(postId))
+                .totalLikes(totalLikes)
                 .message(message)
                 .build();
+
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -310,18 +316,6 @@ public class PostServiceImpl implements PostService {
                 .build();
     }
 
-
-    private CommentListDto convertToCommentListDto(Comments comment) {
-        return CommentListDto.builder()
-                .id(comment.getId())
-                .content(comment.getContent())
-                .createdAt(comment.getCreatedAt())
-                .updatedAt(comment.getUpdatedAt())
-                .authorName(comment.isAnonymous() ? comment.getAnonymousName() : comment.getAuthor().getUsername())
-                .anonymous(comment.isAnonymous())
-                .anonymousName(comment.getAnonymousName())
-                .build();
-    }
 
     private void createAndConnectTags(Posts post, List<String> tagNames) {
         if (tagNames == null || tagNames.isEmpty()) {
@@ -344,16 +338,6 @@ public class PostServiceImpl implements PostService {
                         .build();
                 post.addPostTag(postTag);
             }
-        }
-    }
-
-    private Page<Posts> getPostWithTag(int page, int size, List<String> tags){
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-
-        if (tags != null && !tags.isEmpty()) {
-            return postRepository.findByTagsIn(tags, pageable);
-        } else {
-            return postRepository.findAll(pageable);
         }
     }
 }
