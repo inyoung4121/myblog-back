@@ -5,14 +5,22 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestControllerAdvice
 public class CustomPostExceptionsHandler {
     @ExceptionHandler(CustomPostExceptions.PostNotFoundException.class)
-    public ResponseEntity<String> handleRoleChangeRequestNotFoundException(CustomPostExceptions.PostNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    public ResponseEntity<Map<String, String>> handleRoleChangeRequestNotFoundException(CustomPostExceptions.PostNotFoundException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
+
     @ExceptionHandler(CustomPostExceptions.UserMissMatchException.class)
-    public ResponseEntity<String> handleRoleChangeRequestNotFoundException(CustomPostExceptions.UserMissMatchException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+    public ResponseEntity<Map<String, String>> handleRoleChangeRequestNotFoundException(CustomPostExceptions.UserMissMatchException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 }
