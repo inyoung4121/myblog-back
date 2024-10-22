@@ -26,6 +26,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserDetailsServiceImpl userDetailsService;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getRequestURI();
+        String method = request.getMethod();
+
+        // 인증이 필요한 경로들만 명시
+        boolean requiresAuth =
+                path.startsWith("/api/secure/") ||  // 보안이 필요한 API
+                        (path.startsWith("/api/posts/") &&
+                                (method.equals("POST") || method.equals("PUT") || method.equals("DELETE"))); // 글 작성/수정/삭제
+
+        // true를 리턴하면 필터를 건너뛰므로, requiresAuth의 반대를 리턴
+        return !requiresAuth;
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 

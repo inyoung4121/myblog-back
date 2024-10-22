@@ -15,7 +15,7 @@ public class VisitServiceImpl implements VisitService{
     private final TotalVisitCountRepository totalVisitCountRepository;
 
     @Transactional
-    @CachePut(value = "visitCounts")
+    @CachePut(value = "visitorCounts")
     public void incrementVisitCount() {
         LocalDate today = LocalDate.now();
         TotalVisitCount visitCount = totalVisitCountRepository.findByDate(today)

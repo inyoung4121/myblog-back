@@ -26,7 +26,7 @@ public class SidebarCacheService {
 
         QTotalVisitCount qVisit = QTotalVisitCount.totalVisitCount;
 
-        //쿼리 한번으로 불러오나 세번으로 불러오나 캐시되어있어 성능차이가 미미 할 것이므로 일자별로 명확하게 호출
+        //쿼리 한번으로 불러오나 세번으로 불러오나 캐시되어있어 성능차이가 미미 할 것이므로 일자별로 명확하게 불러옴
         Long totalCount = queryFactory
                 .select(qVisit.count.sum())
                 .from(qVisit)

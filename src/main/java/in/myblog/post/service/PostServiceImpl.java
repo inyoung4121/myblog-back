@@ -1,20 +1,25 @@
 package in.myblog.post.service;
 
 
+import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import in.myblog.comment.domain.Comments;
 import in.myblog.comment.dto.CommentListDto;
 import in.myblog.like.domain.Like;
+import in.myblog.like.domain.QLike;
 import in.myblog.like.repository.LikeRepository;
-import in.myblog.post.domain.Posts;
-import in.myblog.post.domain.PostTags;
-import in.myblog.post.domain.VisitLog;
+import in.myblog.post.domain.*;
 import in.myblog.post.dto.*;
 import in.myblog.post.exception.CustomPostExceptions;
 import in.myblog.post.repository.PostRepository;
 import in.myblog.post.repository.PostTagRespository;
 import in.myblog.post.repository.TagRepository;
 import in.myblog.post.repository.VisitLogRepository;
-import in.myblog.post.domain.Tags;
+import in.myblog.user.domain.QUsers;
 import in.myblog.user.domain.Users;
 import in.myblog.user.exception.CustomUserExceptions;
 import in.myblog.user.repository.UserRepository;
@@ -24,12 +29,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.querydsl.core.types.dsl.Expressions.stringTemplate;
 
 
 @RequiredArgsConstructor
@@ -42,6 +50,7 @@ public class PostServiceImpl implements PostService {
     private final VisitLogRepository visitLogRepository;
     private final UserRepository userRepository;
     private final LikeRepository likeRepository;
+    private final JPAQueryFactory queryFactory;
 
 
     @Transactional
@@ -104,44 +113,108 @@ public class PostServiceImpl implements PostService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PostSummaryDTO> getRecentPosts(int page, int size, List<String> tags1) {
+    public Page<PostSummaryDTO> getRecentPosts(int page, int size, List<String> tags) {
+        QPosts posts = QPosts.posts;
+        QPostTags postTags = QPostTags.postTags;
+        QTags tag = QTags.tags;
+        QUsers users = QUsers.users;
+        QLike like = QLike.like;
 
-        Page<Posts> postsPage = getPostWithTag(page, size, tags1);
+        // DTO로 직접 조회
+        JPAQuery<PostSummaryDTO> query = queryFactory
+                .select(Projections.constructor(PostSummaryDTO.class,
+                        posts.id,
+                        posts.title,
+                        users.username,
+                        posts.createdAt,
+                        Expressions.stringTemplate(
+                                "CASE WHEN LENGTH({0}) > 100 THEN SUBSTRING({0}, 1, 100) ELSE {0} END",
+                                posts.content
+                        ),
+                        // GROUP_CONCAT으로 태그들을 하나의 문자열로 모음
+                        Expressions.stringTemplate(
+                                "GROUP_CONCAT({0})",
+                                tag.name
+                        ),
+                        posts.likes.size()
+                ))
+                .from(posts)
+                .leftJoin(posts.author, users)
+                .leftJoin(posts.postTags, postTags)
+                .leftJoin(postTags.tag, tag);
 
-        List<Posts> postsWithTags = postRepository.findPostsWithTags(postsPage.getContent());
-        List<Object[]> likeCounts = postRepository.countLikesForPosts(postsPage.getContent());
+        // 태그 필터링
+        if (tags != null && !tags.isEmpty()) {
+            query.where(posts.id.in(
+                    JPAExpressions
+                            .select(postTags.post.id)
+                            .from(postTags)
+                            .join(postTags.tag, tag)
+                            .where(tag.name.in(tags))
+            ));
+        }
 
-        Map<Long, Long> postIdToLikeCount = likeCounts.stream()
-                .collect(Collectors.toMap(
-                        arr -> (Long) arr[0],
-                        arr -> (Long) arr[1]
-                ));
+        // 그룹화 필요 (GROUP_CONCAT 때문에)
+        query.groupBy(
+                posts.id,
+                posts.title,
+                users.username,
+                posts.createdAt,
+                posts.content,
+                posts.likes.size()
+        );
 
-        return postsPage.map(post -> {
-            Posts postWithTags = postsWithTags.stream()
-                    .filter(p -> p.getId().equals(post.getId()))
-                    .findFirst()
-                    .orElse(post);
+        // 정렬
+        query.orderBy(posts.createdAt.desc());
 
-            List<String> tags = postWithTags.getPostTags().stream()
-                    .map(postTag -> postTag.getTag().getName())
-                    .collect(Collectors.toList());
+        // 카운트 쿼리 최적화
+        JPAQuery<Long> countQuery = queryFactory
+                .select(posts.countDistinct())
+                .from(posts)
+                .leftJoin(posts.postTags, postTags)
+                .leftJoin(postTags.tag, tag);
 
-            Long likeCount = postIdToLikeCount.getOrDefault(post.getId(), 0L);
+        if (tags != null && !tags.isEmpty()) {
+            countQuery.where(posts.id.in(
+                    JPAExpressions
+                            .select(postTags.post.id)
+                            .from(postTags)
+                            .join(postTags.tag, tag)
+                            .where(tag.name.in(tags))
+            ));
+        }
 
-            return new PostSummaryDTO(
-                    post.getId(),
-                    post.getTitle(),
-                    post.getAuthor().getUsername(),
-                    post.getCreatedAt(),
-                    post.getContent().length() > 100
-                            ? post.getContent().substring(0, 100) + "..."
-                            : post.getContent(),
-                    tags,
-                    likeCount.intValue()
-            );
-        });
+        Pageable pageable = PageRequest.of(page, size);
+
+        return PageableExecutionUtils.getPage(
+                query
+                        .offset(pageable.getOffset())
+                        .limit(pageable.getPageSize())
+                        .fetch(),
+                pageable,
+                countQuery::fetchOne
+        );
     }
+
+    // 태그 조건을 별도 메소드로 분리
+    private BooleanExpression tagCondition(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return null;
+        }
+
+        QPosts posts = QPosts.posts;
+        QPostTags postTag = QPostTags.postTags;
+        QTags tag = QTags.tags;
+
+        return posts.id.in(
+                JPAExpressions
+                        .select(postTag.post.id)
+                        .from(postTag)
+                        .join(postTag.tag, tag)
+                        .where(tag.name.in(tags))
+        );
+    }
+
 
     @Transactional
     public ResponsePageDetailDTO getPost(Long postId, String ipAddress, String userAgent) {

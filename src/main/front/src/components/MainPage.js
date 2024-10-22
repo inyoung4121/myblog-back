@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import BlogPost from './BlogPost';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import { useTag } from '../contexts/TagContext';  // 경로 확인 필요
+import { useTag } from '../contexts/TagContext';
 
 const MainPage = () => {
     const [posts, setPosts] = useState([]);
@@ -40,12 +40,13 @@ const MainPage = () => {
     }, [selectedTags]);
 
     useEffect(() => {
-        console.log('Selected Tags:', selectedTags);
-        setPage(0);
-        setPosts([]);
-        setHasMore(true);
-        fetchPosts(0);
-    }, [selectedTags, fetchPosts]);
+        if (page === 0) {
+            console.log('Selected Tags:', selectedTags);
+            setPosts([]);
+            setHasMore(true);
+            fetchPosts(0);
+        }
+    }, [selectedTags, page, fetchPosts]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(

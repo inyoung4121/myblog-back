@@ -32,7 +32,7 @@ public class ResponsePagedPostsDTO {
                 summary.getTitle(),
                 summary.getAuthorName(),
                 summary.getCreatedAt(),
-                summary.getContentPreview()
+                summary.getContent()
         );
     }
 }
