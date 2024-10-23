@@ -7,15 +7,11 @@ COPY src/main/front/ ./
 RUN npm run build
 
 # Spring Boot 빌드 단계
-FROM gradle:8.10.2-jdk17 AS build-spring
+FROM gradle:8.5-jdk17 AS build-spring
 WORKDIR /app
-COPY build.gradle settings.gradle ./
-COPY gradle ./gradle
-COPY gradlew ./
-COPY src ./src
+COPY . .
 COPY --from=build-react /app/frontend/build ./src/main/resources/static
-RUN chmod +x ./gradlew
-RUN ./gradlew build --no-daemon
+RUN gradle build --no-daemon -x test
 
 # 실행 단계
 FROM openjdk:17-jdk-slim
