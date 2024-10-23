@@ -35,9 +35,9 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/webjars/**").permitAll()
                         .requestMatchers("/api/secure/**").authenticated() // 인증이 필요한 경로
-                        .requestMatchers(HttpMethod.POST, "/api/posts/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_USER")
-                        .requestMatchers(HttpMethod.PUT, "/api/posts/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_USER")
-                        .requestMatchers(HttpMethod.DELETE, "/api/posts/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_USER")
+                        .requestMatchers(HttpMethod.POST, "/api/posts/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
+                        .requestMatchers(HttpMethod.PUT, "/api/posts/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/posts/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
                         .requestMatchers(HttpMethod.GET, "/api/posts/**").permitAll()
                         .anyRequest().permitAll() // 나머지는 모두 허용
                 )

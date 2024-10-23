@@ -1,6 +1,7 @@
 package in.myblog.secure;
 
 import in.myblog.jwt.JwtUtil;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -25,79 +26,97 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImpl userDetailsService;
 
-
-
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        String accessToken = jwtUtil.extractTokenFromHeader(request);
-        String refreshToken = jwtUtil.extractTokenFromCookie(request);
-        Long userId = null;
-
-        if (accessToken != null) {
-            userId = processAccessToken(accessToken, refreshToken, response);
-        }
-
-        if (userId == null && refreshToken != null) {
-            userId = processRefreshToken(refreshToken, response);
-        }
-
-        if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            authenticateUser(userId, accessToken, request);
-        }
-
-        chain.doFilter(request, response);
-    }
-
-    private Long processAccessToken(String accessToken, String refreshToken, HttpServletResponse response) {
         try {
-            if (jwtUtil.validateToken(accessToken)) {
-                if (jwtUtil.isTokenExpired(accessToken)) {
-                    log.info("Access token has expired. Attempting to use refresh token.");
-                    return refreshTokens(refreshToken, response);
-                } else {
-                    return jwtUtil.getUserIdFromToken(accessToken);
+            String accessToken = jwtUtil.extractTokenFromHeader(request);
+            String refreshToken = jwtUtil.extractTokenFromCookie(request);
+
+            // 1. Access Token이 있는 경우
+            if (accessToken != null) {
+                try {
+                    // Access Token 검증 시도
+                    if (jwtUtil.validateToken(accessToken)) {
+                        authenticateUser(jwtUtil.getUserIdFromToken(accessToken), request);
+                        chain.doFilter(request, response);
+                        return;
+                    }
+                } catch (ExpiredJwtException e) {
+                    // Access Token이 만료된 경우, Refresh Token으로 재발급 시도
+                    log.info("Access token expired. Attempting token refresh...");
+                    handleTokenRefresh(refreshToken, response, request, chain);
+                    return;
+                } catch (Exception e) {
+                    log.error("Access token validation failed", e);
                 }
-            } else {
-                log.error("Invalid access token.");
             }
+
+            // 2. Access Token이 없고 Refresh Token만 있는 경우
+            if (refreshToken != null) {
+                handleTokenRefresh(refreshToken, response, request, chain);
+                return;
+            }
+
+            // 3. 둘 다 없는 경우 - 인증 실패
+            chain.doFilter(request, response);
+
         } catch (Exception e) {
-            log.error("Error processing access token: {}", e.getMessage());
+            log.error("Authentication process failed", e);
+            handleAuthenticationFailure(response);
         }
-        return null;
     }
 
-    private Long processRefreshToken(String refreshToken, HttpServletResponse response) {
+    private void handleTokenRefresh(String refreshToken, HttpServletResponse response,
+                                    HttpServletRequest request, FilterChain chain)
+            throws IOException, ServletException {
         try {
-            if (jwtUtil.validateToken(refreshToken) && !jwtUtil.isTokenExpired(refreshToken)) {
-                return refreshTokens(refreshToken, response);
-            } else {
-                log.error("Refresh token is invalid or expired.");
+            // Refresh Token 유효성 검증
+            if (!jwtUtil.validateToken(refreshToken)) {
+                handleAuthenticationFailure(response);
+                return;
             }
+
+            // Refresh Token에서 userId 추출
+            Long userId = jwtUtil.getUserIdFromToken(refreshToken);
+
+            // 새로운 Access Token 발급
+            String newAccessToken = jwtUtil.generateAccessToken(userId);
+
+            // Refresh Token 만료 시간이 얼마 남지 않은 경우 새로 발급
+            if (jwtUtil.shouldRefreshToken(refreshToken)) {
+                String newRefreshToken = jwtUtil.generateRefreshToken(userId);
+                addRefreshTokenToCookie(response, newRefreshToken);
+            }
+
+            // 새로운 Access Token을 응답 헤더에 추가
+            response.setHeader("Authorization", "Bearer " + newAccessToken);
+
+            // 사용자 인증 처리
+            authenticateUser(userId, request);
+
+            // 필터 체인 계속 진행
+            chain.doFilter(request, response);
+
         } catch (Exception e) {
-            log.error("Error processing refresh token: {}", e.getMessage());
+            log.error("Token refresh failed", e);
+            handleAuthenticationFailure(response);
         }
-        return null;
     }
 
-    private Long refreshTokens(String refreshToken, HttpServletResponse response) {
-        Long userId = jwtUtil.getUserIdFromToken(refreshToken);
-        String newAccessToken = jwtUtil.generateAccessToken(userId);
-        String newRefreshToken = jwtUtil.generateRefreshToken(userId);
-        response.setHeader("Authorization", "Bearer " + newAccessToken);
-        addRefreshTokenToCookie(response, newRefreshToken);
-        return userId;
-    }
-
-    private void authenticateUser(Long userId, String accessToken, HttpServletRequest request) {
+    private void authenticateUser(Long userId, HttpServletRequest request) {
         UserDetails userDetails = userDetailsService.loadUserByUserId(userId);
-        if (jwtUtil.validateToken(accessToken)) {
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-        }
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+
+    private void handleAuthenticationFailure(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"message\":\"Authentication failed\"}");
     }
 
     private void addRefreshTokenToCookie(HttpServletResponse response, String refreshToken) {
@@ -105,7 +124,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
         cookie.setPath("/");
-        cookie.setMaxAge(7 * 24 * 60 * 60);
+        cookie.setMaxAge(7 * 24 * 60 * 60); // 7 days
         response.addCookie(cookie);
     }
 }

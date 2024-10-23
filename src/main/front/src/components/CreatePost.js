@@ -1,7 +1,27 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import Header from './Header';  // Header 컴포넌트 import
+import axios from '../config/axiosConfig';
+import Header from './Header';
+
+axios.interceptors.response.use(
+    response => response,
+    async (error) => {
+        const originalRequest = error.config;
+
+        // 401 에러이고 새로운 액세스 토큰이 헤더에 있는 경우
+        if (error.response.status === 401 && error.response.headers['authorization']) {
+            const newToken = error.response.headers['authorization'].replace('Bearer ', '');
+            // 새 토큰 저장
+            localStorage.setItem('eureka_jwt_token', newToken);
+            // 원래 요청의 헤더 업데이트
+            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+            // 실패한 요청 재시도
+            return axios(originalRequest);
+        }
+
+        return Promise.reject(error);
+    }
+);
 
 const CreatePost = () => {
     const [title, setTitle] = useState('');
@@ -56,6 +76,7 @@ const CreatePost = () => {
             }
         }
     };
+
 
     return (
         <div className="min-h-screen bg-gray-100">

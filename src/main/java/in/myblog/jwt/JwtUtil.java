@@ -35,6 +35,16 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
+    public boolean shouldRefreshToken(String token) {
+        try {
+            Date expiration = getExpirationDateFromToken(token);
+            // 만료 3일 전부터 갱신
+            return expiration.getTime() - System.currentTimeMillis() < 3 * 24 * 60 * 60 * 1000;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public String generateToken(Long userId, long expiration) {
         return Jwts.builder()
                 .setSubject(String.valueOf(userId))
