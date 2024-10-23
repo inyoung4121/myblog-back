@@ -1,5 +1,6 @@
 package in.myblog.user.controller;
 
+import in.myblog.post.dto.VerifyAuthResponse;
 import in.myblog.user.dto.*;
 import in.myblog.user.service.UserService;
 import in.myblog.user.domain.*;
@@ -12,8 +13,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -139,5 +143,32 @@ public class UserController {
     public ResponseEntity<List<RoleChangeRequest>> getAllRoleChangeRequests() {
         List<RoleChangeRequest> requests = userService.getAllRoleChangeRequests();
         return ResponseEntity.ok(requests);
+    }
+
+    @GetMapping("/verify-auth")
+    public ResponseEntity<?> verifyAuth(@AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (userDetails == null) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(new VerifyAuthResponse(false, null));
+            }
+
+            // 사용자의 권한 중 첫 번째 권한을 role로 사용
+            String role = userDetails.getAuthorities().stream()
+                    .findFirst()
+                    .map(authority -> authority.getAuthority().replace("ROLE_", ""))
+                    .orElse(null);
+
+            return ResponseEntity.ok(new VerifyAuthResponse(
+                    true,
+                    role
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(new VerifyAuthResponse(false, null));
+        }
     }
 }

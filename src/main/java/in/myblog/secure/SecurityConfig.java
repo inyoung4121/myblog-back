@@ -28,12 +28,6 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/**").permitAll()
-                        .requestMatchers("/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/swagger-resources/**",
-                                "/v3/api-docs/**",
-                                "/webjars/**").permitAll()
                         .requestMatchers("/api/secure/**").authenticated() // 인증이 필요한 경로
                         .requestMatchers(HttpMethod.POST, "/api/posts/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
                         .requestMatchers(HttpMethod.PUT, "/api/posts/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_MANAGER")
@@ -43,7 +37,7 @@ public class SecurityConfig {
                 )
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {
-                            String redirectUrl = "/api/auth/login?redirect=" + request.getRequestURI();
+                            String redirectUrl = "/login";
                             response.sendRedirect(redirectUrl);
                         })
                 )

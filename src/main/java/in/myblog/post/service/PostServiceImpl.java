@@ -8,6 +8,7 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import in.myblog.comment.domain.QComments;
 import in.myblog.comment.dto.CommentListDto;
+import in.myblog.comment.repository.CommentRepository;
 import in.myblog.like.domain.Like;
 import in.myblog.like.repository.LikeRepository;
 import in.myblog.post.domain.*;
@@ -29,6 +30,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.support.PageableExecutionUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +57,7 @@ public class PostServiceImpl implements PostService {
     private final UserRepository userRepository;
     private final LikeRepository likeRepository;
     private final JPAQueryFactory queryFactory;
+    private final CommentRepository commentRepository;
 
 
     @Transactional
@@ -82,6 +86,47 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @CacheEvict(value = "tags", allEntries = true)
     public Long updatePost(Long postId, String title, String content, Long authorId, List<String> tags) {
+        // 1. 게시물과 작성자 검증
+        Posts post = validatePostAndAuthor(postId, authorId);
+
+        // 2. 삭제될 태그 ID 미리 조회
+        List<Long> tagIds = getTagIdsFromPost(post);
+
+        // 3. 게시물 기본 정보 업데이트
+        post.updateTitle(title)
+                .updateContent(content)
+                .updateUpdatedAt();
+
+        // 4. 태그 업데이트
+        updatePostTags(post, tags);
+
+        // 5. 고아 태그 정리
+        cleanupOrphanedTags(tagIds);
+
+        // 6. 저장 및 반환
+        return postRepository.save(post).getId();
+    }
+
+    @Transactional
+    @CacheEvict(value = "tags", allEntries = true)
+    public void deletePost(Long postId, Long authorId) {
+        // 1. 게시물과 작성자 검증
+        Posts post = validatePostAndAuthor(postId, authorId);
+
+        // 2. 삭제될 태그 ID 미리 조회
+        List<Long> tagIds = getTagIdsFromPost(post);
+
+        // 3. 연관 데이터 삭제
+        deleteAssociatedData(post);
+
+        // 4. 게시물 삭제
+        postRepository.delete(post);
+
+        // 5. 고아 태그 정리
+        cleanupOrphanedTags(tagIds);
+    }
+
+    private Posts validatePostAndAuthor(Long postId, Long authorId) {
         Posts post = postRepository.findById(postId)
                 .orElseThrow(() -> new CustomPostExceptions.PostNotFoundException(postId));
 
@@ -89,30 +134,62 @@ public class PostServiceImpl implements PostService {
                 .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
 
         if (!Objects.equals(user.getId(), post.getAuthor().getId())) {
-            throw new CustomPostExceptions.UserMissMatchException(user.getUsername(), postId);
+            throw new CustomPostExceptions.UserMissMatchException(postId);
         }
 
-        post.updateTitle(title).updateContent(content).updateUpdatedAt();
-
-        // 기존 태그 연결 삭제
-        postTagRepository.deleteByPostId(postId);
-        post.getPostTags().clear(); // 영속성 컨텍스트에서도 제거
-
-        // 새로운 태그 생성 및 연결 (태그가 있는 경우에만)
-        if (tags != null && !tags.isEmpty()) {
-            createAndConnectTags(post, tags);
-        }
-
-        // 변경 사항 저장
-        Posts updatedPost = postRepository.save(post);
-
-        return updatedPost.getId();
+        return post;
     }
 
-    @Transactional
-    @CachePut(value = "tags")
-    public void deletePost(Long postId) {
-        postRepository.deleteById(postId);
+    private void updatePostTags(Posts post, List<String> newTags) {
+        // 기존 태그 연결 제거
+        postTagRepository.deleteByPostId(post.getId());
+        post.getPostTags().clear();
+
+        // 새로운 태그 생성 및 연결
+        if (newTags != null && !newTags.isEmpty()) {
+            createAndConnectTags(post, newTags);
+        }
+    }
+
+    private List<Long> getTagIdsFromPost(Posts post) {
+        return postTagRepository.findByPostId(post.getId())
+                .stream()
+                .map(postTag -> postTag.getTag().getId())
+                .collect(Collectors.toList());
+    }
+
+    private void deleteAssociatedData(Posts post) {
+        try {
+            Long postId = post.getId();
+            likeRepository.deleteByPostId(postId);
+            commentRepository.deleteByPostId(postId);
+            postTagRepository.deleteByPostId(postId);
+        } catch (Exception e) {
+            log.error("Failed to delete associated data for post {}: {}", post.getId(), e.getMessage(), e);
+            throw new CustomPostExceptions.PostDeleteFailedException();
+        }
+    }
+
+    private void cleanupOrphanedTags(List<Long> tagIds) {
+        if (!tagIds.isEmpty()) {
+            try {
+                cleanupUnusedTags(tagIds);
+            } catch (Exception e) {
+                log.warn("Failed to cleanup orphaned tags: {}", e.getMessage(), e);
+                // 태그 정리 실패는 전체 작업을 실패시키지 않도록 함
+            }
+        }
+    }
+
+    private void cleanupUnusedTags(List<Long> tagIds) {
+        for (Long tagId : tagIds) {
+            // 해당 태그를 사용하는 다른 게시글이 있는지 확인
+            long postCount = postTagRepository.countByTagId(tagId);
+            if (postCount == 0) {
+                tagRepository.deleteById(tagId);
+                log.debug("Deleted unused tag with id: {}", tagId);
+            }
+        }
     }
 
     @Transactional(readOnly = true)
