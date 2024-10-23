@@ -106,8 +106,8 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @PostMapping("/secure/role-change-request")
-    public ResponseEntity<RoleChangeRequest> requestRoleChange() {
-        Long userId = Long.valueOf(((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername());
+    public ResponseEntity<RoleChangeRequest> requestRoleChange(@AuthenticationPrincipal UserDetails userDetails) {
+        Long userId = Long.valueOf(userDetails.getUsername());
         RoleChangeRequest request = userService.requestRoleChange(userId);
         return ResponseEntity.ok(request);
     }
