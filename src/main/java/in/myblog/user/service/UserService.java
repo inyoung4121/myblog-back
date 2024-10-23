@@ -110,6 +110,14 @@ public class UserService {
         Users user = userRepository.findById(userId)
                 .orElseThrow(CustomUserExceptions.UserNotFoundException::new);
 
+        // PENDING 상태의 요청이 있는지 확인
+        boolean hasPendingRequest = roleChangeRequestRepository
+                .existsByUserAndStatus(user, RoleChangeRequest.RequestStatus.PENDING);
+
+        if (hasPendingRequest) {
+            throw new CustomUserExceptions.DuplicateRoleChangeRequestException();
+        }
+
         RoleChangeRequest request = RoleChangeRequest.builder()
                 .user(user)
                 .status(RoleChangeRequest.RequestStatus.PENDING)

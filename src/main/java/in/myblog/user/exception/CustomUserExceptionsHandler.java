@@ -76,4 +76,12 @@ public class CustomUserExceptionsHandler {
         response.put("message", "Access to this resource is forbidden");
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
+
+    @ExceptionHandler(CustomUserExceptions.DuplicateRoleChangeRequestException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicateRoleChangeRequestException(
+            CustomUserExceptions.DuplicateRoleChangeRequestException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
 }

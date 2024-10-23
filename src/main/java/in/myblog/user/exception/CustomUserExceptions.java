@@ -39,4 +39,10 @@ public class CustomUserExceptions {
             super("이미 처리된 요청입니다");
         }
     }
+
+    public static class DuplicateRoleChangeRequestException extends RuntimeException {
+        public DuplicateRoleChangeRequestException() {
+            super("이미 처리 중인 권한 변경 요청이 있습니다.");
+        }
+    }
 }
