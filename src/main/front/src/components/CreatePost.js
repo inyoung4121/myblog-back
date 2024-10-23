@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from '../config/axiosConfig';
 import Header from './Header';
 
@@ -24,9 +24,13 @@ axios.interceptors.response.use(
 );
 
 const CreatePost = () => {
-    const [title, setTitle] = useState('');
-    const [content, setContent] = useState('');
-    const [tags, setTags] = useState('');
+    const location = useLocation();
+    const isEdit = location.state?.isEdit;
+    const existingPost = location.state?.post;
+
+    const [title, setTitle] = useState(existingPost?.title || '');
+    const [content, setContent] = useState(existingPost?.content || '');
+    const [tags, setTags] = useState(existingPost?.tags || '');
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
@@ -54,10 +58,15 @@ const CreatePost = () => {
                 tags: tags.split(',').map(tag => tag.trim())
             };
 
-            const response = await axios.post('/api/posts/create', postData, config);
+            let response;
+            if (isEdit) {
+                response = await axios.put(`/api/posts/update/${existingPost.id}`, postData, config);
+            } else {
+                response = await axios.post('/api/posts/create', postData, config);
+            }
 
             if (response.status === 200) {
-                navigate(`/api/posts/${response.data.id}`);  // 새로 생성된 포스트 페이지로 이동
+                navigate(`/api/posts/${response.data.id}`);
             }
         } catch (err) {
             if (err.response) {
@@ -68,8 +77,11 @@ const CreatePost = () => {
                     case 401:
                         setError('인증에 실패했습니다. 다시 로그인해주세요.');
                         break;
+                    case 403:
+                        setError('글 작성 권한이 없습니다');
+                        break;
                     default:
-                        setError('글 작성 중 오류가 발생했습니다.');
+                        setError(`글 ${isEdit ? '수정' : '작성'} 중 오류가 발생했습니다.`);
                 }
             } else {
                 setError('서버와의 통신 중 오류가 발생했습니다.');
@@ -84,7 +96,9 @@ const CreatePost = () => {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-12">
                 <div className="bg-white shadow-xl rounded-lg overflow-hidden">
                     <div className="p-6 sm:p-10">
-                        <h1 className="text-3xl font-bold mb-6">새 글 작성</h1>
+                        <h1 className="text-3xl font-bold mb-6">
+                            {isEdit ? '글 수정' : '새 글 작성'}
+                        </h1>
                         <form onSubmit={handleSubmit}>
                             <div className="mb-4">
                                 <label htmlFor="title" className="block text-gray-700 text-sm font-bold mb-2">
@@ -130,7 +144,7 @@ const CreatePost = () => {
                                     type="submit"
                                     className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
                                 >
-                                    글 작성
+                                    {isEdit ? "글 수정" : "글 작성"}
                                 </button>
                             </div>
                         </form>

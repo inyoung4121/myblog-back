@@ -58,7 +58,8 @@ public class PostController {
     @PutMapping("/update/{postId}")
     public ResponseEntity<PostCreationResponseDTO> updatePost(@PathVariable Long postId,
                                                               @RequestBody RequestUpdatePostDTO request) {
-        Long userId = Long.valueOf(((Users) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername());
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Long userId = Long.valueOf(userDetails.getUsername());
         Long updatedPostId = postService.updatePost(postId, request.getTitle(), request.getContent(), userId, request.getTags());
         return ResponseEntity.ok(new PostCreationResponseDTO(updatedPostId));
     }
@@ -71,7 +72,9 @@ public class PostController {
     })
     @DeleteMapping("/{postId}")
     public ResponseEntity<Void> deletePost(@PathVariable Long postId) {
-        postService.deletePost(postId);
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Long userId = Long.valueOf(userDetails.getUsername());
+        postService.deletePost(postId, userId);
         return ResponseEntity.ok().build();
     }
 

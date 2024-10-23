@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -7,6 +7,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Header from './Header';
 import { v4 as uuidv4 } from 'uuid';
+
 
 const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -129,6 +130,8 @@ const PostDetail = () => {
     const [likeCount, setLikeCount] = useState(0);
     const [deviceId, setDeviceId] = useState('');
     const [isLiking, setIsLiking] = useState(false);
+    const [isAuthor, setIsAuthor] = useState(false);
+    const navigate = useNavigate();  // useNavigate hook 선언
 
     useEffect(() => {
         const token = localStorage.getItem('eureka_jwt_token');
@@ -147,6 +150,15 @@ const PostDetail = () => {
                 setPost(postResponse.data);
                 setComments(postResponse.data.commentListDtoList || []);
                 setLikeCount(postResponse.data.likeCount);
+                setLoading(false);
+
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    // 게시글 작성자와 현재 사용자 비교
+                    setIsAuthor(postResponse.data.authorName === user.username);
+                }
+
                 setLoading(false);
 
                 const likeStatusResponse = await axios.get(`/api/posts/${postId}/like`, {
@@ -182,6 +194,37 @@ const PostDetail = () => {
             setError('좋아요 처리 중 오류가 발생했습니다.');
         } finally {
             setIsLiking(false);
+        }
+    };
+
+    const handleEdit = () => {
+        navigate(`/create/post`, {
+            state: {
+                isEdit: true,
+                post: {
+                    id: postId,
+                    title: post.title,
+                    content: post.content,
+                    tags: post.tags.join(',')
+                }
+            }
+        });
+    };
+
+    const handleDelete = async () => {
+        if (!window.confirm('정말로 이 글을 삭제하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            await axios.delete(`/api/posts/${postId}`);
+            navigate('/'); // 홈으로 이동
+        } catch (err) {
+            if (err.response?.status === 401) {
+                setError('삭제 권한이 없습니다.');
+            } else {
+                setError('글 삭제 중 오류가 발생했습니다.');
+            }
         }
     };
 
@@ -262,7 +305,25 @@ const PostDetail = () => {
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-12">
                 <div className="bg-white shadow-xl rounded-lg overflow-hidden">
                     <div className="p-6 sm:p-10">
-                        <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
+                        <div className="flex justify-between items-center mb-4">
+                            <h1 className="text-4xl font-bold">{post.title}</h1>
+                            {isAuthor && (
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleEdit}
+                                        className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800"
+                                    >
+                                        수정
+                                    </button>
+                                    <button
+                                        onClick={handleDelete}
+                                        className="px-4 py-2 text-sm text-red-600 hover:text-red-800"
+                                    >
+                                        삭제
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         <div className="text-gray-600 mb-2">
                             <span>By {post.authorName}</span>
                             <span className="mx-2">•</span>
@@ -274,14 +335,18 @@ const PostDetail = () => {
                                 </>
                             )}
                         </div>
-                        <div className="mb-6">
-                            {post.tags && post.tags.map((tag, index) => (
-                                <span key={index}
-                                      className="inline-block bg-black rounded-md px-2 py-1.5 text-xs font-medium text-white mr-2 mb-2">
-                                    {tag}
-                                </span>
-                            ))}
-                        </div>
+                        {post.tags?.filter(tag => tag.trim()).length > 0 && (
+                            <div className="mb-6">
+                                {post.tags
+                                    .filter(tag => tag.trim())
+                                    .map((tag, index) => (
+                                        <span key={index}
+                                              className="inline-block bg-black rounded-md px-2 py-1.5 text-xs font-medium text-white mr-2 mb-2">
+                {tag}
+            </span>
+                                    ))}
+                            </div>
+                        )}
                         <div className="prose max-w-none mb-8">
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}

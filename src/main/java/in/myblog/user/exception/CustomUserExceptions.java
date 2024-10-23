@@ -24,7 +24,7 @@ public class CustomUserExceptions {
 
     public static class InvalidCredentialsException extends RuntimeException {
         public InvalidCredentialsException() {
-            super("비밀번호가 틀렸습니다");
+            super("비밀번호 또는 이메일이 틀렸습니다");
         }
     }
 

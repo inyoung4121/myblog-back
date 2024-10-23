@@ -13,8 +13,13 @@ public class CustomPostExceptions {
     }
 
     public static class UserMissMatchException extends RuntimeException {
-        public UserMissMatchException(String userName, Long postId) {
-            super(String.format("사용자 ID %s는 게시물 ID %d에 대한 권한이 없습니다", userName, postId));
+        public UserMissMatchException(Long postId) {
+            super(String.format("게시물 ID %d에 대한 권한이 없습니다", postId));
+        }
+    }
+    public static class PostDeleteFailedException extends RuntimeException {
+        public PostDeleteFailedException() {
+            super(String.format("게시물 삭제에 실패했습니다"));
         }
     }
 }

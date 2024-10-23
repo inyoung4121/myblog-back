@@ -6,6 +6,7 @@ import LoginPage from './components/LoginPage';
 import PostDetail from './components/PostDetail';
 import CreatePost from './components/CreatePost';
 import './config/axiosConfig';
+import PrivateRoute from "./route/PrivateRoute";
 
 
 const App = () => {
@@ -16,7 +17,14 @@ const App = () => {
                     <Route path="/" element={<MainPage/>}/>
                     <Route path="/api/posts/:postId" element={<PostDetail/>}/>
                     <Route path="/login" element={<LoginPage/>}/>
-                    <Route path="/create/post" element={<CreatePost/>}/>
+                    <Route
+                        path="/create/post"
+                        element={
+                            <PrivateRoute requiredRoles={['ADMIN', 'MANAGER']}>
+                                <CreatePost/>
+                            </PrivateRoute>
+                        }
+                    />
                 </Routes>
             </Router>
         </TagProvider>

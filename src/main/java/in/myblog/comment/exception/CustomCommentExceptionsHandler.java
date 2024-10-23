@@ -29,6 +29,6 @@ public class CustomCommentExceptionsHandler {
     public ResponseEntity<Map<String, String>> handleInvalidPasswordException(CustomCommentExceptions.InvalidPasswordException ex) {
         Map<String, String> response = new HashMap<>();
         response.put("message", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 }
