@@ -66,7 +66,7 @@ const CreatePost = () => {
             }
 
             if (response.status === 200) {
-                navigate(`/api/posts/${response.data.id}`);
+                navigate(`/posts/${response.data.id}`);
             }
         } catch (err) {
             if (err.response) {

@@ -19,7 +19,7 @@ const App = () => {
             <Router>
                 <Routes>
                     <Route path="/" element={<MainPage/>}/>
-                    <Route path="/api/posts/:postId" element={<PostDetail/>}/>
+                    <Route path="/posts/:postId" element={<PostDetail/>}/>
                     <Route path="/login" element={<LoginPage/>}/>
                     <Route
                         path="/create/post"

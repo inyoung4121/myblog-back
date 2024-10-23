@@ -23,7 +23,7 @@ const BlogPost = React.forwardRef(({ post }, ref) => {
     };
 
     return (
-        <Link to={`/api/posts/${post.id}`} className="block">
+        <Link to={`/posts/${post.id}`} className="block">
             <article
                 ref={ref}
                 className="bg-white shadow-[0_0_4px_2px_rgba(0,0,0,0.1)] rounded-2xl overflow-hidden h-full flex flex-col cursor-pointer transition-all duration-300 hover:scale-105 border border-emerald-100"
