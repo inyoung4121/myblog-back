@@ -7,11 +7,15 @@ import PostDetail from './components/PostDetail';
 import CreatePost from './components/CreatePost';
 import './config/axiosConfig';
 import PrivateRoute from "./route/PrivateRoute";
+import { Helmet } from 'react-helmet';
 
 
 const App = () => {
     return (
         <TagProvider>
+            <Helmet>
+                <title>Blog Eureka</title>
+            </Helmet>
             <Router>
                 <Routes>
                     <Route path="/" element={<MainPage/>}/>
