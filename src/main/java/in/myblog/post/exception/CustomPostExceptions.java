@@ -22,4 +22,10 @@ public class CustomPostExceptions {
             super(String.format("게시물 삭제에 실패했습니다"));
         }
     }
+
+    public static class ImageUploadFailedException extends RuntimeException {
+        public ImageUploadFailedException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
 }

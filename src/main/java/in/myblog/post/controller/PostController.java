@@ -3,6 +3,7 @@ package in.myblog.post.controller;
 
 import in.myblog.post.domain.Posts;
 import in.myblog.post.dto.*;
+import in.myblog.post.exception.CustomPostExceptions;
 import in.myblog.post.service.PostServiceImpl;
 import in.myblog.user.domain.Users;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,8 +20,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "Post Management", description = "APIs for managing blog posts")
 @RequiredArgsConstructor
@@ -30,7 +33,7 @@ public class PostController {
 
     private final PostServiceImpl postService;
 
-    @Operation(summary = "Create a new post", description = "Creates a new blog post")
+    @Operation(summary = "Create a new post", description = "Creates a new blog post with images")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully created post",
                     content = @Content(mediaType = "application/json",
@@ -39,14 +42,22 @@ public class PostController {
             @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @PostMapping("/create")
-    public ResponseEntity<PostCreationResponseDTO> createPost(@RequestBody RequestUpdatePostDTO request) {
+    public ResponseEntity<PostCreationResponseDTO> createPost(
+            @RequestBody PostCreateRequestDTO request) {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long userId = Long.valueOf(userDetails.getUsername());
-        Long postId = postService.createPost(request.getTitle(), request.getContent(), userId, request.getTags());
+
+        Long postId = postService.createPost(
+                request.getTitle(),
+                request.getContent(),
+                userId,
+                request.getTags()
+        );
         return ResponseEntity.ok(new PostCreationResponseDTO(postId));
     }
 
-    @Operation(summary = "Update an existing post", description = "Updates an existing blog post")
+
+    @Operation(summary = "Update an existing post", description = "Updates an existing blog post with images")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully updated post",
                     content = @Content(mediaType = "application/json",
@@ -56,11 +67,19 @@ public class PostController {
             @ApiResponse(responseCode = "404", description = "Post not found")
     })
     @PutMapping("/update/{postId}")
-    public ResponseEntity<PostCreationResponseDTO> updatePost(@PathVariable Long postId,
-                                                              @RequestBody RequestUpdatePostDTO request) {
+    public ResponseEntity<PostCreationResponseDTO> updatePost(
+            @PathVariable Long postId,
+            @RequestBody PostUpdateRequestDTO request) {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long userId = Long.valueOf(userDetails.getUsername());
-        Long updatedPostId = postService.updatePost(postId, request.getTitle(), request.getContent(), userId, request.getTags());
+
+        Long updatedPostId = postService.updatePost(
+                postId,
+                request.getTitle(),
+                request.getContent(),
+                userId,
+                request.getTags()
+        );
         return ResponseEntity.ok(new PostCreationResponseDTO(updatedPostId));
     }
 
@@ -134,5 +153,22 @@ public class PostController {
             @RequestParam String deviceId) {
         LikeResponseDTO response = postService.getLikeStatus(postId, deviceId);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/upload-image")
+    @Operation(summary = "Upload an image", description = "Uploads an image and returns its URL")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully uploaded image"),
+            @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    public ResponseEntity<Map<String, String>> uploadImage(
+            @RequestPart("image") MultipartFile image) {
+        try {
+            String imageUrl = postService.uploadImage(image);
+            return ResponseEntity.ok(Map.of("url", imageUrl));
+        } catch (Exception e) {
+            throw new CustomPostExceptions.ImageUploadFailedException("Failed to upload image", e);
+        }
     }
 }

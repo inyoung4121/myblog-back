@@ -1,6 +1,9 @@
 package in.myblog.post.service;
 
 
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
@@ -24,17 +27,17 @@ import in.myblog.user.exception.CustomUserExceptions;
 import in.myblog.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.support.PageableExecutionUtils;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -58,7 +61,19 @@ public class PostServiceImpl implements PostService {
     private final LikeRepository likeRepository;
     private final JPAQueryFactory queryFactory;
     private final CommentRepository commentRepository;
+    private final AmazonS3 amazonS3;
 
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucket;
+
+    @Value("${cloud.aws.credentials.access-key}")
+    private String accessKey;
+
+    @Value("${cloud.aws.credentials.secret-key}")
+    private String secretKey;
+
+    @Value("${cloud.aws.region.static}")
+    private String region;
 
     @Transactional
     @CacheEvict(value = "tags", allEntries = true)
@@ -68,7 +83,7 @@ public class PostServiceImpl implements PostService {
 
         Posts post = Posts.builder()
                 .title(title)
-                .content(content)
+                .content(content)  // 이미 이미지 URL이 포함된 content
                 .author(user)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -82,7 +97,6 @@ public class PostServiceImpl implements PostService {
         return savedPost.getId();
     }
 
-
     @Transactional
     @CacheEvict(value = "tags", allEntries = true)
     public Long updatePost(Long postId, String title, String content, Long authorId, List<String> tags) {
@@ -93,6 +107,7 @@ public class PostServiceImpl implements PostService {
         List<Long> tagIds = getTagIdsFromPost(post);
 
         // 3. 게시물 기본 정보 업데이트
+        // 기존 이미지와 새 이미지가 모두 포함된 content
         post.updateTitle(title)
                 .updateContent(content)
                 .updateUpdatedAt();
@@ -108,7 +123,6 @@ public class PostServiceImpl implements PostService {
     }
 
     @Transactional
-    @CacheEvict(value = "tags", allEntries = true)
     public void deletePost(Long postId, Long authorId) {
         // 1. 게시물과 작성자 검증
         Posts post = validatePostAndAuthor(postId, authorId);
@@ -116,14 +130,67 @@ public class PostServiceImpl implements PostService {
         // 2. 삭제될 태그 ID 미리 조회
         List<Long> tagIds = getTagIdsFromPost(post);
 
-        // 3. 연관 데이터 삭제
+        // 3. S3에서 이미지 삭제
+        deleteImagesFromContent(post.getContent());
+
+        // 4. 연관 데이터 삭제
         deleteAssociatedData(post);
 
-        // 4. 게시물 삭제
+        // 5. 게시물 삭제
         postRepository.delete(post);
 
-        // 5. 고아 태그 정리
+        // 6. 고아 태그 정리
         cleanupOrphanedTags(tagIds);
+    }
+
+    // S3에 이미지 업로드
+    public String uploadImage(MultipartFile image) {
+        try {
+            // 파일 메타데이터 설정
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentType(image.getContentType());
+            metadata.setContentLength(image.getSize());
+
+            // 파일 이름 생성
+            String originalFilename = image.getOriginalFilename();
+            String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            String key = "posts/" + UUID.randomUUID().toString() + extension;
+
+            // S3에 업로드
+            amazonS3.putObject(new PutObjectRequest(
+                    bucket,
+                    key,
+                    image.getInputStream(),
+                    metadata
+            ));
+
+            // URL 반환
+            return amazonS3.getUrl(bucket, key).toString();
+        } catch (IOException e) {
+            log.error("Failed to upload image to S3: {}", e.getMessage());
+            throw new CustomPostExceptions.ImageUploadFailedException("Failed to upload image to S3", e);
+        }
+    }
+
+    // S3에서 이미지 삭제
+    private void deleteImagesFromContent(String content) {
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("<img[^>]+src=\"([^\"]+)\"[^>]*>");
+        java.util.regex.Matcher matcher = pattern.matcher(content);
+
+        while (matcher.find()) {
+            String imageUrl = matcher.group(1);
+            // S3 URL에서 키 추출
+            if (imageUrl.contains(bucket + ".s3.")) {
+                try {
+                    String key = imageUrl.substring(imageUrl.indexOf(bucket) + bucket.length() + 1);
+                    // URL 디코딩이 필요할 수 있음
+                    key = java.net.URLDecoder.decode(key, "UTF-8");
+                    amazonS3.deleteObject(bucket, key);
+                } catch (Exception e) {
+                    log.error("Failed to delete image from S3: {}", e.getMessage());
+                }
+            }
+        }
     }
 
     private Posts validatePostAndAuthor(Long postId, Long authorId) {

@@ -25,7 +25,14 @@ public class CustomPostExceptionsHandler {
     }
 
     @ExceptionHandler(CustomPostExceptions.PostDeleteFailedException.class)
-    public ResponseEntity<Map<String, String>> PostDeleteFailedException(CustomPostExceptions.PostDeleteFailedException ex) {
+    public ResponseEntity<Map<String, String>> handlePostDeleteFailedException(CustomPostExceptions.PostDeleteFailedException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    @ExceptionHandler(CustomPostExceptions.ImageUploadFailedException.class)
+    public ResponseEntity<Map<String, String>> handleImageUploadFailedException(CustomPostExceptions.ImageUploadFailedException ex) {
         Map<String, String> response = new HashMap<>();
         response.put("message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
