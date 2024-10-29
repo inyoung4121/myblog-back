@@ -174,6 +174,8 @@ const PostDetail = () => {
         fetchPostAndComments();
     }, [postId]);
 
+
+
     const handleLike = async () => {
         if (isLiking) return;
 
@@ -293,7 +295,38 @@ const PostDetail = () => {
                 </blockquote>
             );
         },
+        // 이미지 렌더링 커스터마이징
+        img({src, alt}) {
+            return (
+                <div className="my-4">
+                    <img
+                        src={src}
+                        alt={alt || ''}
+                        className="max-w-full h-auto rounded-lg shadow-lg mx-auto"
+                        style={{ maxHeight: '600px', objectFit: 'contain' }}
+                    />
+                </div>
+            );
+        },
+        // 단락 렌더링 커스터마이징
+        p({children}) {
+            return (
+                <p className="mb-4 whitespace-pre-wrap">
+                    {children}
+                </p>
+            );
+        }
     };
+
+    const processContent = (content) => {
+        // img 태그를 마크다운 이미지 문법으로 변환
+        return content.replace(
+            /<img\s+src="([^"]+)"\s+alt="([^"]*)">/g,
+            (match, src, alt) => `\n\n![${alt}](${src})\n\n`
+        );
+    };
+
+
 
     if (loading) return <div className="pt-20 text-center">Loading...</div>;
     if (error) return <div className="pt-20 text-center text-red-600">{error}</div>;
@@ -352,7 +385,7 @@ const PostDetail = () => {
                                 remarkPlugins={[remarkGfm]}
                                 components={customRenderers}
                             >
-                                {post.content}
+                                {processContent(post.content)}
                             </ReactMarkdown>
                         </div>
 

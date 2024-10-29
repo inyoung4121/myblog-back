@@ -1,27 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from '../config/axiosConfig';
 import Header from './Header';
-
-axios.interceptors.response.use(
-    response => response,
-    async (error) => {
-        const originalRequest = error.config;
-
-        // 401 에러이고 새로운 액세스 토큰이 헤더에 있는 경우
-        if (error.response.status === 401 && error.response.headers['authorization']) {
-            const newToken = error.response.headers['authorization'].replace('Bearer ', '');
-            // 새 토큰 저장
-            localStorage.setItem('eureka_jwt_token', newToken);
-            // 원래 요청의 헤더 업데이트
-            originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
-            // 실패한 요청 재시도
-            return axios(originalRequest);
-        }
-
-        return Promise.reject(error);
-    }
-);
 
 const CreatePost = () => {
     const location = useLocation();
@@ -32,7 +12,54 @@ const CreatePost = () => {
     const [content, setContent] = useState(existingPost?.content || '');
     const [tags, setTags] = useState(existingPost?.tags || '');
     const [error, setError] = useState('');
+    const [cursorPosition, setCursorPosition] = useState(0);
+    const contentRef = useRef(null);
     const navigate = useNavigate();
+
+    const handleImageUpload = async (e) => {
+        const files = Array.from(e.target.files);
+
+        try {
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append('image', file);
+
+                const token = localStorage.getItem('eureka_jwt_token');
+                const response = await axios.post('/api/posts/upload-image', formData, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+
+                const imageUrl = response.data.url;
+                insertImageAtCursor(imageUrl);
+            }
+        } catch (err) {
+            setError('이미지 업로드 중 오류가 발생했습니다.');
+        }
+    };
+
+    const insertImageAtCursor = (imageUrl) => {
+        const textarea = contentRef.current;
+        const imageTag = `\n<img src="${imageUrl}" alt="uploaded image">\n`;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        const newContent = content.substring(0, start) +
+            imageTag +
+            content.substring(end);
+
+        setContent(newContent);
+
+        // 커서를 이미지 태그 뒤로 이동
+        const newCursorPosition = start + imageTag.length;
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+        }, 0);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -45,17 +72,17 @@ const CreatePost = () => {
                 return;
             }
 
-            const config = {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            };
-
             const postData = {
                 title,
                 content,
                 tags: tags.split(',').map(tag => tag.trim())
+            };
+
+            const config = {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             };
 
             let response;
@@ -89,6 +116,9 @@ const CreatePost = () => {
         }
     };
 
+    const handleContentClick = (e) => {
+        setCursorPosition(e.target.selectionStart);
+    };
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -114,15 +144,33 @@ const CreatePost = () => {
                                 />
                             </div>
                             <div className="mb-4">
+                                <label className="block text-gray-700 text-sm font-bold mb-2">
+                                    이미지 추가
+                                </label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                    multiple
+                                />
+                                <p className="text-sm text-gray-500 mt-1">
+                                    ※ 이미지를 추가하고 싶은 위치에 커서를 놓고 파일을 선택하세요
+                                </p>
+                            </div>
+                            <div className="mb-4">
                                 <label htmlFor="content" className="block text-gray-700 text-sm font-bold mb-2">
                                     내용
                                 </label>
                                 <textarea
+                                    ref={contentRef}
                                     id="content"
                                     value={content}
                                     onChange={(e) => setContent(e.target.value)}
+                                    onClick={handleContentClick}
+                                    onKeyUp={handleContentClick}
                                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                    rows="10"
+                                    rows="15"
                                     required
                                 />
                             </div>
