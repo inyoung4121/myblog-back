@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaHeart } from 'react-icons/fa'
+import { FaHeart } from 'react-icons/fa';
 import { useTag } from '../contexts/TagContext';
 
 const formatDate = (date) => {
@@ -14,11 +14,38 @@ const formatDate = (date) => {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
 };
 
+const stripMarkdown = (text) => {
+    if (!text) return '';
+
+    return text
+        // 이미지와 링크 제거
+        .replace(/!\[.*?\]\(.*?\)/g, '')
+        .replace(/\[.*?\]\(.*?\)/g, '')
+        // 헤더 제거
+        .replace(/#{1,6}\s/g, '')
+        // 볼드/이탤릭 제거
+        .replace(/[*_]{1,3}(.*?)[*_]{1,3}/g, '$1')
+        // 코드 블록 제거
+        .replace(/```[\s\S]*?```/g, '')
+        // 인라인 코드 제거
+        .replace(/`.*?`/g, '')
+        // HTML 태그 제거
+        .replace(/<[^>]*>/g, '')
+        // 연속된 공백 및 빈 줄 정리
+        .replace(/\s+/g, ' ')
+        .trim();
+};
+
+const truncateText = (text, maxLines = 3) => {
+    const processedText = stripMarkdown(text);
+    return processedText ? `${processedText}...` : '';
+};
+
 const BlogPost = React.forwardRef(({ post }, ref) => {
     const { selectedTags, toggleTag } = useTag();
 
     const handleTagClick = (e, tag) => {
-        e.preventDefault();  // Link의 기본 동작 방지
+        e.preventDefault();
         toggleTag(tag);
     };
 
@@ -50,7 +77,7 @@ const BlogPost = React.forwardRef(({ post }, ref) => {
                             textOverflow: 'ellipsis'
                         }}
                     >
-                        {post.content}
+                        {truncateText(post.content)}
                     </p>
                     <div className="flex flex-wrap gap-2 mt-2">
                         {post.tags.map((tag, index) => (
