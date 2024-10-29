@@ -41,7 +41,7 @@ const stripMarkdown = (text) => {
 
 const truncateText = (text, maxLines = 3) => {
     const processedText = stripMarkdown(text);
-    return processedText ? `${processedText}` : '';
+    return processedText ? `${processedText}    ` : '';
 };
 
 const BlogPost = React.forwardRef(({ post }, ref) => {
