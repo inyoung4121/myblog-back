@@ -271,10 +271,9 @@ public class PostServiceImpl implements PostService {
                         users.username,
                         posts.createdAt,
                         Expressions.stringTemplate(
-                                "CASE WHEN LENGTH({0}) > 100 THEN SUBSTRING({0}, 1, 100) ELSE {0} END",
+                                "SUBSTRING({0}, 1, 300)",  // 300자만 가져오고
                                 posts.content
                         ),
-                        // GROUP_CONCAT으로 태그들을 하나의 문자열로 모음
                         Expressions.stringTemplate(
                                 "GROUP_CONCAT({0})",
                                 tag.name

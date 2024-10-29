@@ -26,11 +26,25 @@ public class PostSummaryDTO {
         this.title = title;
         this.authorName = authorName;
         this.createdAt = createdAt;
-        this.content = content;
+        this.content = processContent(content);
         this.tags = tagString != null ?
                 Arrays.asList(tagString.split(",")) :
                 new ArrayList<>();
         this.likeCount = likeCount;
     }
 
+    private String processContent(String content) {
+        if (content != null) {
+            content = content
+                    .replaceAll("<img[^>]*(?:>|\\.{3}|\\s|$)", "")
+                    .replaceAll("!\\[[^\\]]*\\]\\([^)]+\\)", "")
+                    .replaceAll("https?://[^\\s]{20,}", "")
+                    .trim();
+
+            if (content.length() > 100) {
+                content = content.substring(0, 100) + "...";
+            }
+        }
+        return content;
+    }
 }
