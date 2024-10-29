@@ -18,9 +18,12 @@ const stripMarkdown = (text) => {
     if (!text) return '';
 
     return text
-        // 이미지와 링크 제거
-        .replace(/!\[.*?\]\(.*?\)/g, '')
-        .replace(/\[.*?\]\(.*?\)/g, '')
+        // HTML img 태그 제거 (src 속성에 공백이 있는 경우도 처리)
+        .replace(/<img[^>]+>/g, '')
+        // 마크다운 이미지 문법 제거 (alt 텍스트에 특수문자가 있는 경우도 처리)
+        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+        // 일반 링크 제거
+        .replace(/\[([^\]]*)\]\([^)]+\)/g, '$1')
         // 헤더 제거
         .replace(/#{1,6}\s/g, '')
         // 볼드/이탤릭 제거
@@ -29,7 +32,7 @@ const stripMarkdown = (text) => {
         .replace(/```[\s\S]*?```/g, '')
         // 인라인 코드 제거
         .replace(/`.*?`/g, '')
-        // HTML 태그 제거
+        // 남은 HTML 태그 제거
         .replace(/<[^>]*>/g, '')
         // 연속된 공백 및 빈 줄 정리
         .replace(/\s+/g, ' ')

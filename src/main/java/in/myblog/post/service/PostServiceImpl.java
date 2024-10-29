@@ -415,7 +415,7 @@ public class PostServiceImpl implements PostService {
         return result;
     }
 
-    private void saveVisitLog(Long postId, String ipAddress, String userAgent) {
+    public void saveVisitLog(Long postId, String ipAddress, String userAgent) {
         VisitLog visitLog = VisitLog.builder()
                 .post(Posts.builder().id(postId).build())
                 .ipAddress(ipAddress)

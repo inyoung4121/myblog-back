@@ -1,6 +1,7 @@
 package in.myblog.post.controller;
 
 
+import in.myblog.config.IpUtil;
 import in.myblog.post.domain.Posts;
 import in.myblog.post.dto.*;
 import in.myblog.post.exception.CustomPostExceptions;
@@ -32,6 +33,7 @@ import java.util.Map;
 public class PostController {
 
     private final PostServiceImpl postService;
+    private final IpUtil ipUtil;
 
     @Operation(summary = "Create a new post", description = "Creates a new blog post with images")
     @ApiResponses(value = {
@@ -108,7 +110,11 @@ public class PostController {
     public ResponseEntity<Page<PostSummaryDTO>> getRecentPosts(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "16") int size,
-            @RequestParam(required = false) List<String> tags) {
+            @RequestParam(required = false) List<String> tags,
+            HttpServletRequest request) {
+        String ipAddress = ipUtil.getClientIp(request);
+        String userAgent = request.getHeader("User-Agent");
+        postService.saveVisitLog(1L, ipAddress, userAgent);
         Page<PostSummaryDTO> response = postService.getRecentPosts(page, size, tags);
         return ResponseEntity.ok(response);
     }
@@ -122,7 +128,7 @@ public class PostController {
     })
     @GetMapping("/{postId}")
     public ResponseEntity<ResponsePageDetailDTO> getPost(@PathVariable Long postId, HttpServletRequest request) {
-        String ipAddress = request.getRemoteAddr();
+        String ipAddress = ipUtil.getClientIp(request);
         String userAgent = request.getHeader("User-Agent");
         ResponsePageDetailDTO post = postService.getPost(postId, ipAddress, userAgent);
         return ResponseEntity.ok(post);
